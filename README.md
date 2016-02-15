@@ -5,15 +5,12 @@
 
 1. Clone the CellCnn repository
   ```Shell
-  git clone https://github.com/EiriniArvaniti/CellCnn.git
+  git clone https://github.com/eiriniar/CellCnn.git
   ```
 
-2. Install CellCnn dependencies
+2. Install the CellCnn dependencies
   ```Shell
-  pip install -r https://raw.githubusercontent.com/dnouri/nolearn/master/requirements.txt
-  pip install git+https://github.com/dnouri/nolearn.git@master#egg=nolearn==0.7.git
-  pip install pandas
-  pip install seaborn
+  pip install -r https://raw.githubusercontent.com/eiriniar/CellCnn/master/requirements.txt
   ```
 
 3. To install CellCnn, run the following command after replacing `path_to_CellCnn` with the actual path in your system
