@@ -1,0 +1,11 @@
+
+numpy
+scipy
+pandas
+matplotlib
+seaborn
+scikit-learn
+tabulate
+-e git+https://github.com/Lasagne/Lasagne.git@8f4f9b2#egg=Lasagne==0.2.git
+-e git+https://github.com/Theano/Theano.git@54186290#egg=Theano==0.8.git
+-e git+https://github.com/dnouri/nolearn.git@master#egg=nolearn==0.7.git
