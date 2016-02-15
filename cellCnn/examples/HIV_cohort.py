@@ -47,7 +47,7 @@ def plot_KM(stime, censor, g1, pval, figname):
     plt.ylim(0,1)
     plt.xlabel("time", fontsize=14)
     plt.ylabel("survival", fontsize=14)
-    plt.text(0.7, 0.85, 'pval = %.2e' % (pval), fontdict=font,
+    plt.text(0.7, 0.85, 'pval = %.2e' % (pval), fontdict={'size': 12},
             horizontalalignment='center', verticalalignment='center',
             transform=ax.transAxes) 
     plt.xticks(rotation=45)
@@ -71,7 +71,6 @@ def main():
     LOOKUP_PATH = os.path.join(WDIR, 'data', 'HIV.pkl')
     lookup =  pickle.load(open(LOOKUP_PATH, 'rb'))
     data_list = lookup['data']
-    nobs = len(data_list)
     y = lookup['y']
     labels = lookup['labels']
     nmark = len(labels)
@@ -140,9 +139,9 @@ def main():
         results = train_model(cv_train_samples, cv_y_train, labels,
                                 valid_samples=cv_test_samples, valid_phenotypes=cv_y_test, 
                                 ncell=500, nsubset=200, subset_selection='random',
-                                nrun=10, pooling='mean', regression=True, nfilter=nfilter,
+                                nrun=3, pooling='mean', regression=True, nfilter=nfilter,
                                 learning_rate=0.03, momentum=0.9, l2_weight_decay_conv=1e-8,
-                                l2_weight_decay_out=1e-8, max_epochs=50, verbose=1,
+                                l2_weight_decay_out=1e-8, max_epochs=20, verbose=1,
                                 select_filters='best', accur_thres=-1)
             
         net_dict = results['best_net']
@@ -242,11 +241,10 @@ def main():
     small_data_list_v = [x[:ncell_cons].T.reshape(1,nmark,ncell_cons) for x in validation_list]
     data_v = np.vstack(small_data_list_v)
     stime, censor = y_valid[:,0], y_valid[:,1]
-                            
+                     
     risk_p = - net_best.predict(data_v)   
     g1 = np.squeeze(risk_p > np.median(risk_p))
     pval_v = logrank_pval(stime, censor, g1)
-    pval_best[irep] = pval_v
     fig_v = os.path.join(OUTDIR, 'best_net_cox_test.eps')
     plot_KM(stime, censor, g1, pval_v, fig_v) 
               
