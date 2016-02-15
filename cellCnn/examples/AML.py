@@ -30,7 +30,7 @@ def main():
     
     # how many AML blast cells to spike-in
     nblast_spike = 1000
-    x_AML = shuffle(lookup['aml_0'])[:nblast_spike]
+    x_AML = shuffle(lookup['SJ10'])[:nblast_spike]
     
     # create a flag to track AML cells later on
     z_control_list = [np.zeros((x.shape[0], 1), dtype=int) for x in control_list]

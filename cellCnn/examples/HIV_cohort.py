@@ -184,6 +184,7 @@ def main():
             cons.append(representative(w_strong[clusters == key], stop=-2))
                 
     cons_mat = np.vstack(cons)
+    cons_mat[:,:-2] = cons_mat[:,:-2] / np.linalg.norm(cons_mat[:,:-2], axis=1).reshape(-1,1)
         
     # plot the consensus signatures
     plt.figure(figsize=(10, 3))

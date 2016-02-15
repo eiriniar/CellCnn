@@ -4,7 +4,6 @@ from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.utils.extmath import row_norms
 from sklearn.utils import check_random_state
 from sklearn.metrics.pairwise import pairwise_distances
-from collections import Counter
 
 
 # draw subsets of cells randomly
