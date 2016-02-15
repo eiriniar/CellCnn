@@ -7,6 +7,8 @@ import cellCnn
 from cellCnn.utils import mkdir_p
 from cellCnn.run_CellCnn import train_model
 from cellCnn.plotting import visualize_results
+from numpy.random import RandomState
+from lasagne.random import set_rng as set_lasagne_rng
 
 
 WDIR = os.path.join(cellCnn.__path__[0], 'examples')
@@ -15,6 +17,11 @@ mkdir_p(OUTDIR)
 
 def main():
     
+    # set random seed for reproducible results
+    seed = 12345
+    np.random.seed(seed)
+    set_lasagne_rng(RandomState(seed))
+
     LOOKUP_PATH = os.path.join(WDIR, 'data', 'ALL.pkl')
     lookup =  pickle.load(open(LOOKUP_PATH, 'rb'))
     labels = lookup['labels']
@@ -53,7 +60,8 @@ def main():
                             l2_weight_decay_out=1e-8, max_epochs=20, verbose=1,
                             select_filters='consensus_priority', accur_thres=.99)
                         
-    visualize_results(results, OUTDIR, prefix='example_ALL')
+    visualize_results(results, OUTDIR, prefix='example_ALL',
+                        plots=['consensus', 'clustering_results'])
                             
 if __name__ == '__main__':
     try:
