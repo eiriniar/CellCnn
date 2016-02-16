@@ -12,7 +12,14 @@ from numpy.random import RandomState
 from lasagne.random import set_rng as set_lasagne_rng
 
 
+''' 
+    GM-CSF_vs_control.pkl can be downloaded from 
+    http://www.imsb.ethz.ch/research/claassen/Software/cellcnn.html
+'''
+
 WDIR = os.path.join(cellCnn.__path__[0], 'examples')
+LOOKUP_PATH = os.path.join(WDIR, 'data', 'GM-CSF_vs_control.pkl')
+
 OUTDIR = os.path.join(WDIR, 'output', 'PBMC')
 mkdir_p(OUTDIR)
 
@@ -24,7 +31,6 @@ def main():
     set_lasagne_rng(RandomState(seed))
 
     # load the data (mass cytometry measurements after arcsinh transformation)
-    LOOKUP_PATH = os.path.join(WDIR, 'data', 'GM-CSF_vs_control.pkl')
     lookup =  pickle.load(open(LOOKUP_PATH, 'rb'))
     labels = lookup[lookup.keys()[0]]['labels']
     

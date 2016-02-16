@@ -11,7 +11,14 @@ from numpy.random import RandomState
 from lasagne.random import set_rng as set_lasagne_rng
 
 
+''' 
+    ALL.pkl can be downloaded from 
+    http://www.imsb.ethz.ch/research/claassen/Software/cellcnn.html
+'''
+
 WDIR = os.path.join(cellCnn.__path__[0], 'examples')
+LOOKUP_PATH = os.path.join(WDIR, 'data', 'ALL.pkl')
+
 OUTDIR = os.path.join(WDIR, 'output', 'ALL')
 mkdir_p(OUTDIR)
 
@@ -22,7 +29,6 @@ def main():
     np.random.seed(seed)
     set_lasagne_rng(RandomState(seed))
 
-    LOOKUP_PATH = os.path.join(WDIR, 'data', 'ALL.pkl')
     lookup =  pickle.load(open(LOOKUP_PATH, 'rb'))
     labels = lookup['labels']
     x_control = lookup['control']

@@ -30,7 +30,7 @@ from lasagne.random import set_rng as set_lasagne_rng
 
 
 WDIR = os.path.join(cellCnn.__path__[0], 'examples')
-OUTDIR = os.path.join(WDIR, 'output', 'HIV_10_fold')
+OUTDIR = os.path.join(WDIR, 'output', 'HIV')
 mkdir_p(OUTDIR)
 
 def plot_KM(stime, censor, g1, pval, figname):

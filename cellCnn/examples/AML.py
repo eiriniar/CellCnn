@@ -10,7 +10,15 @@ from cellCnn.plotting import visualize_results
 from numpy.random import RandomState
 from lasagne.random import set_rng as set_lasagne_rng
 
+
+''' 
+    AML.pkl can be downloaded from 
+    http://www.imsb.ethz.ch/research/claassen/Software/cellcnn.html
+'''
+
 WDIR = os.path.join(cellCnn.__path__[0], 'examples')
+LOOKUP_PATH = os.path.join(WDIR, 'data', 'AML.pkl')
+
 OUTDIR = os.path.join(WDIR, 'output', 'AML')
 mkdir_p(OUTDIR)
 
@@ -21,7 +29,6 @@ def main():
     np.random.seed(seed)
     set_lasagne_rng(RandomState(seed))
 
-    LOOKUP_PATH = os.path.join(WDIR, 'data', 'AML.pkl')
     lookup =  pickle.load(open(LOOKUP_PATH, 'rb'))
     labels = lookup['labels']
     healthy_BM = lookup['healthy_BM']
