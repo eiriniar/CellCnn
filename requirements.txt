@@ -1,7 +1,7 @@
 
-numpy
+numpy>=1.10
 scipy
-pandas
+pandas>=0.15
 seaborn
 tabulate
 scikit-learn>=0.16.1
