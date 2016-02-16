@@ -89,7 +89,7 @@ def compute_consensus_profiles(param_dict, accuracies, accur_thres=.99,
     if w_strong.shape[0] > 1:
                     
         Z = linkage(w_strong[:,:-2], 'average', metric='cosine')
-        clusters = fcluster(Z, .5, criterion='distance') - 1    
+        clusters = fcluster(Z, .3, criterion='distance') - 1    
         c = Counter(clusters)
         
         # generate the consensus signatures     

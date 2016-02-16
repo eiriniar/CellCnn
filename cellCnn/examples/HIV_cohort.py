@@ -22,7 +22,7 @@ from lifelines.statistics import logrank_test
 import scipy.stats as ss
 from sklearn.cross_validation import KFold
 import cellCnn
-from cellCnn.utils import mkdir_p, param_vector, representative
+from cellCnn.utils import mkdir_p, param_vector
 from cellCnn.run_CellCnn import train_model
 from cellCnn.plotting import plot_marker_distribution
 from numpy.random import RandomState
@@ -30,11 +30,11 @@ from lasagne.random import set_rng as set_lasagne_rng
 
 
 WDIR = os.path.join(cellCnn.__path__[0], 'examples')
-OUTDIR = os.path.join(WDIR, 'output', 'HIV')
+OUTDIR = os.path.join(WDIR, 'output', 'HIV_10_fold')
 mkdir_p(OUTDIR)
 
 def plot_KM(stime, censor, g1, pval, figname):
-
+    sns.set_style('white')
     kmf = KaplanMeierFitter()        
     f, ax = plt.subplots(figsize=(3, 3))
     np.set_printoptions(precision=2, suppress=False)
@@ -103,33 +103,14 @@ def main():
     y_valid = np.vstack([y1[:sep1], y0[:sep0]])
     
     # cross validation on the training cohort    
-    nfold = 5
+    nfold = 10
     nfilter = 3
-        
-    # the network used for testing
-    ncell_cons = 3000
-    layers_cons = [
-                (layers.InputLayer, {'name': 'input', 'shape': (None, nmark, ncell_cons)}),
-                (layers.Conv1DLayer, {'name': 'conv', 
-                                    'num_filters': nfilter, 'filter_size': 1}),
-                (layers.Pool1DLayer, {'name': 'meanPool', 'pool_size' : ncell_cons,
-                                    'mode': 'average_exc_pad'}),
-                (layers.DenseLayer, {'name': 'output',
-                                    'num_units': 1,
-                                    'nonlinearity': T.tanh})]
-        
-    net_cons = NeuralNet(layers = layers_cons,                
-                        update = nesterov_momentum,
-                        update_learning_rate = 0.001,
-                        regression=True,
-                        max_epochs=5,
-                        verbose=0)
-            
+           
     skf = KFold(len(tr_list), n_folds=nfold, shuffle=True)
     committee = []
     valid_accuracy = []
     accum_w = np.empty((nfilter * nfold, nmark+2))
-
+    
     for ifold, (train_index, test_index) in enumerate(skf):
         cv_train_samples = [tr_list[t_idx] for t_idx in train_index]
         cv_test_samples = [tr_list[t_idx] for t_idx in test_index]
@@ -153,18 +134,33 @@ def main():
                 
         # add weights to accumulator    
         accum_w[ifold*nfilter:(ifold+1)*nfilter] = w_tot
-          
+         
+    save_path = os.path.join(OUTDIR, 'network_committee.pkl')
+    with open(save_path, 'wb') as f:
+        pickle.dump((committee, valid_accuracy), f, -1)    
+        
+    '''
+    committee, valid_accuracy = pickle.load(open(save_path, 'r'))    
+    # retrieve the filter weights
+    for ifold, net_dict in enumerate(committee):
+        w_tot = param_vector(net_dict, regression=True)
+                
+        # add weights to accumulator    
+        accum_w[ifold*nfilter:(ifold+1)*nfilter] = w_tot
+    '''    
+    
     # choose the strong signatures (all of them)
     w_strong = accum_w
     
-    # cluster
+    # members of each cluster should have cosine similarity > 0.7 
+    # equivalently, cosine distance < 0.3
     Z = linkage(w_strong, 'average', metric='cosine')
-    clusters = fcluster(Z, .5, criterion='distance') - 1
+    clusters = fcluster(Z, .3, criterion='distance') - 1
         
     n_clusters = len(np.unique(clusters))
     print '%d clusters chosen' % (n_clusters)   
             
-    # plot the discovered signatures
+    # plot the discovered filter profiles
     plt.figure(figsize=(3,2))
     idx = range(nmark) + [nmark+1]
     clmap = sns.clustermap(pd.DataFrame(w_strong[:,idx], columns=labels+['survival']),
@@ -176,20 +172,18 @@ def main():
     plt.close()
         
         
-    # generate the consensus signatures
+    # generate the consensus filter profiles
     c = Counter(clusters)
     cons = []
     for key, val in c.items():
         if val > nfold/2:
-            cons.append(representative(w_strong[clusters == key], stop=-2))
-                
+            cons.append(np.mean(w_strong[clusters == key], axis=0))
     cons_mat = np.vstack(cons)
-    cons_mat[:,:-2] = cons_mat[:,:-2] / np.linalg.norm(cons_mat[:,:-2], axis=1).reshape(-1,1)
         
-    # plot the consensus signatures
+    # plot the consensus filter profiles
     plt.figure(figsize=(10, 3))
     idx = range(nmark) + [nmark+1]
-    ax = sns.heatmap(pd.DataFrame(cons_mat[:,idx], columns=labels+ ['survival']),
+    ax = sns.heatmap(pd.DataFrame(cons_mat[:,idx], columns=labels + ['survival']),
                             robust=True, yticklabels=False)
     plt.xticks(rotation=90)
     ax.tick_params(axis='both', which='major', labelsize=20)
@@ -197,63 +191,50 @@ def main():
     fig_path = os.path.join(OUTDIR, 'clmap_consensus.eps')
     plt.savefig(fig_path, format='eps')
     plt.close()
-        
-    # choose the best network
-    i_best = np.argmax(valid_accuracy)
-    best_net = committee[i_best]
-    best_mat = param_vector(best_net, regression=True)
-            
-    # plot the consensus signatures
-    plt.figure(figsize=(10, 3))
-    idx = range(nmark) + [nmark+1]
-    ax = sns.heatmap(pd.DataFrame(best_mat[:,idx], columns=labels+ ['survival']),
-                             robust=True, yticklabels=False)
-    plt.xticks(rotation=90)
-    ax.tick_params(axis='both', which='major', labelsize=20)
-    plt.tight_layout()
-    fig_path = os.path.join(OUTDIR, 'best_network.eps')
-    plt.savefig(fig_path, format='eps')
-    plt.close()
-                           
-    # the neural net with highest validation accuracy
-    nfilter_cons = best_mat.shape[0]
+       
+    # create an ensemble of neural networks
     ncell_cons = 3000
-    layers_cons = [
-                    (layers.InputLayer, {'name': 'input', 'shape': (None, nmark, ncell_cons)}),
+    ncell_voter = 3000
+    layers_voter = [
+                    (layers.InputLayer, {'name': 'input', 'shape': (None, nmark, ncell_voter)}),
                     (layers.Conv1DLayer, {'name': 'conv', 
-                                        'num_filters': nfilter_cons, 'filter_size': 1}),
-                    (layers.Pool1DLayer, {'name': 'meanPool', 'pool_size' : ncell_cons,
+                                        'num_filters': nfilter, 'filter_size': 1}),
+                    (layers.Pool1DLayer, {'name': 'meanPool', 'pool_size' : ncell_voter,
                                         'mode': 'average_exc_pad'}),
                     (layers.DenseLayer, {'name': 'output',
                                         'num_units': 1,
                                         'nonlinearity': T.tanh})]
-            
-    net_best = NeuralNet(layers = layers_cons,                
-                            update = nesterov_momentum,
-                            update_learning_rate = 0.001,
-                            regression=True,
-                            max_epochs=5,
-                            verbose=0)
-            
-    net_best.load_params_from(committee[i_best])
-    net_best.initialize()
              
     # predict on the test cohort
     small_data_list_v = [x[:ncell_cons].T.reshape(1,nmark,ncell_cons) for x in validation_list]
     data_v = np.vstack(small_data_list_v)
     stime, censor = y_valid[:,0], y_valid[:,1]
-                     
-    risk_p = - net_best.predict(data_v)   
+    
+    # committee of the best nfold/2 models
+    voter_risk_pred = list()
+    for ifold in np.argsort(valid_accuracy):
+        voter = NeuralNet(layers = layers_voter,                
+                                    update = nesterov_momentum,
+                                    update_learning_rate = 0.001,
+                                    regression=True,
+                                    max_epochs=5,
+                                    verbose=0)
+        voter.load_params_from(committee[ifold])
+        voter.initialize()
+        # rank the risk predictions
+        voter_risk_pred.append(ss.rankdata(- np.squeeze(voter.predict(data_v))))
+    all_voters = np.vstack(voter_risk_pred)
+                
+    # compute mean rank per individual
+    risk_p = np.mean(all_voters, axis=0)
     g1 = np.squeeze(risk_p > np.median(risk_p))
-    pval_v = logrank_pval(stime, censor, g1)
-    fig_v = os.path.join(OUTDIR, 'best_net_cox_test.eps')
-    plot_KM(stime, censor, g1, pval_v, fig_v) 
-              
+    voters_pval_v = logrank_pval(stime, censor, g1)
+    fig_v = os.path.join(OUTDIR, 'committee_cox_test.eps')
+    plot_KM(stime, censor, g1, voters_pval_v, fig_v) 
+                  
     # filter-activating cells
-    small_data_list_t = [x[:ncell_cons].T.reshape(1,nmark,ncell_cons) for x in tr_list]
-    data_t = np.vstack(small_data_list_t)
+    data_t = np.vstack(small_data_list_v)
     data_stack = np.vstack([x for x in np.swapaxes(data_t, 2, 1)])
-    nn = len(data_stack)
                 
     # finally define a network from the consensus filters
     nfilter_cons = cons_mat.shape[0]
@@ -284,7 +265,7 @@ def main():
     xs = T.tensor3('xs').astype(theano.config.floatX)
     act_conv = theano.function([xs], lh.get_output(net_cons.layers_['conv'], xs)) 
     
-    # and apply
+    # and apply to the test data
     act_tot = act_conv(data_t)
     act_tot = np.swapaxes(act_tot, 2, 1)
     act_stack = np.vstack([x for x in act_tot])
@@ -295,7 +276,7 @@ def main():
         descending_order = np.argsort(val)[::-1]
         val_cumsum = np.cumsum(val[descending_order])
         data_sorted = data_stack[descending_order]
-        thres = 0.5 * val_cumsum[-1]
+        thres = 0.75 * val_cumsum[-1]
         res_data = data_sorted[val_cumsum < thres] 
         fig_path = os.path.join(OUTDIR, 'filter_'+str(i_map)+'_active.eps')       
         plot_marker_distribution([res_data[:,idx], data_stack[:,idx]],

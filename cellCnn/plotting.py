@@ -52,7 +52,7 @@ def plot_marker_distribution(datalist, namelist, labels, grid_size,
 
 
 def visualize_results(res, outdir, prefix,
-                      plots=['consensus'],
+                      plots=['consensus', 'clustering_results'],
                       format='png'):
 
     w_cons = res['selected_filters']
