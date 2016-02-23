@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 
 .DS_Store
+
+# data files
 *.pkl
 *.npy
 
@@ -11,6 +13,8 @@ __pycache__/
 *.eps
 *.png
 *.pdf
+
+looping_scripts/
 
 # C extensions
 *.so

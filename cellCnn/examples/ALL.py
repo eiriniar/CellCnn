@@ -68,7 +68,7 @@ def main():
                         
     visualize_results(results, OUTDIR, prefix='example_ALL',
                         plots=['consensus', 'clustering_results'])
-                            
+               
 if __name__ == '__main__':
     try:
         main()

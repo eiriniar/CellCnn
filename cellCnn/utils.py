@@ -10,6 +10,7 @@ from scipy.cluster.hierarchy import linkage
 from scipy.cluster.hierarchy import fcluster
 from scipy import stats
 from collections import Counter
+from lifelines.statistics import logrank_test
 
 
 def mkdir_p(path):
@@ -236,6 +237,7 @@ def per_sample_biased_subsets(X, x_ctrl, nsubsets, ncell_final,
 
     for i in range(nsubsets):
         x_unbiased = random_subsample(X, nc_unbiased)
+        
         if (i % 100) == 0:
             x_outlier, outlierness = outlier_subsample(X, x_ctrl, to_keep)
     
@@ -252,7 +254,7 @@ def generate_biased_subsets(X, pheno_map, sample_id, x_ctrl, nsubset_ctrl, nsubs
         X_i = filter_per_class(X, sample_id, ylabel)
         S[ylabel] = per_sample_biased_subsets(X_i, x_ctrl, nsubset_biased,
                                              ncell_final, to_keep, 0.5)
-        
+       
     for ylabel in id_ctrl:
         X_i = filter_per_class(X, sample_id, ylabel)
         S[ylabel] = per_sample_subsets(X_i, nsubset_ctrl, ncell_final, k_init=False)
@@ -268,6 +270,8 @@ def generate_biased_subsets(X, pheno_map, sample_id, x_ctrl, nsubset_ctrl, nsubs
     Xt, yt = sku.shuffle(Xt, yt) 
     return Xt, yt
 
-    
+def logrank_pval(stime, censor, g1):
+    res = logrank_test(stime[g1], stime[~g1], censor[g1], censor[~g1], alpha=.95)
+    return res.p_value
     
     

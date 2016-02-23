@@ -79,11 +79,12 @@ def main():
         
     results = train_model(train_samples=train_samples, train_phenotypes=train_phenotypes,
                           labels=phospho_markers, train_sample_flags=train_sample_flags,
-                          ncell=200, nsubset=4096, subset_selection='random',
+                          ncell=200, nsubset=4096, subset_selection='random', nrun=3,
                           pooling='max', ncell_pooled=3, nfilter=2,
                           select_filters='consensus', accur_thres=.99)
                         
     visualize_results(results, OUTDIR, prefix='GM-CSF')
+
                             
 if __name__ == '__main__':
     try:

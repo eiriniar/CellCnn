@@ -17,14 +17,12 @@ import theano
 import theano.tensor as T
 import lasagne.layers.helper as lh  
 
-from lifelines.estimation import KaplanMeierFitter
-from lifelines.statistics import logrank_test
 import scipy.stats as ss
 from sklearn.cross_validation import KFold
 import cellCnn
-from cellCnn.utils import mkdir_p, param_vector
+from cellCnn.utils import mkdir_p, param_vector, logrank_pval
 from cellCnn.run_CellCnn import train_model
-from cellCnn.plotting import plot_marker_distribution
+from cellCnn.plotting import plot_marker_distribution, plot_KM
 from numpy.random import RandomState
 from lasagne.random import set_rng as set_lasagne_rng
 
@@ -32,34 +30,6 @@ from lasagne.random import set_rng as set_lasagne_rng
 WDIR = os.path.join(cellCnn.__path__[0], 'examples')
 OUTDIR = os.path.join(WDIR, 'output', 'HIV')
 mkdir_p(OUTDIR)
-
-def plot_KM(stime, censor, g1, pval, figname):
-    sns.set_style('white')
-    kmf = KaplanMeierFitter()        
-    f, ax = plt.subplots(figsize=(3, 3))
-    np.set_printoptions(precision=2, suppress=False)
-    kmf.fit(stime[g1], event_observed=censor[g1], label=["high-risk group"])
-    kmf.plot(ax=ax, ci_show=False, show_censors=True)
-    kmf.fit(stime[~g1], event_observed=censor[~g1], label=["low-risk group"])
-    kmf.plot(ax=ax, ci_show=False, show_censors=True)
-    ax.grid(b=False)
-    sns.despine()
-    plt.ylim(0,1)
-    plt.xlabel("time", fontsize=14)
-    plt.ylabel("survival", fontsize=14)
-    plt.text(0.7, 0.85, 'pval = %.2e' % (pval), fontdict={'size': 12},
-            horizontalalignment='center', verticalalignment='center',
-            transform=ax.transAxes) 
-    plt.xticks(rotation=45)
-    for item in (ax.get_xticklabels() + ax.get_yticklabels()):
-        item.set_fontsize(10)
-    plt.tight_layout()
-    plt.savefig(figname, format='eps')
-    plt.close()
-
-def logrank_pval(stime, censor, g1):
-    res = logrank_test(stime[g1], stime[~g1], censor[g1], censor[~g1], alpha=.95)
-    return res.p_value
 
 
 def main():
@@ -229,9 +199,9 @@ def main():
     risk_p = np.mean(all_voters, axis=0)
     g1 = np.squeeze(risk_p > np.median(risk_p))
     voters_pval_v = logrank_pval(stime, censor, g1)
-    fig_v = os.path.join(OUTDIR, 'committee_cox_test.eps')
-    plot_KM(stime, censor, g1, voters_pval_v, fig_v) 
-                  
+    fig_v = os.path.join(OUTDIR, 'cellCnn_cox_test.eps')
+    plot_KM(stime, censor, g1, voters_pval_v, fig_v)
+
     # filter-activating cells
     data_t = np.vstack(small_data_list_v)
     data_stack = np.vstack([x for x in np.swapaxes(data_t, 2, 1)])

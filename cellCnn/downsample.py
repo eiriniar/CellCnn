@@ -48,16 +48,16 @@ def kmeans_subsample(X, n_clusters, random_state=None, n_local_trials=10):
     n_samples, n_features = X.shape
     x_squared_norms = row_norms(X, squared=True)
     centers = np.empty((n_clusters, n_features))
-
+    
     # Pick first center randomly
     center_id = random_state.randint(n_samples)
     centers[0] = X[center_id]
-
+    
     # Initialize list of closest distances and calculate current potential
     closest_dist_sq = euclidean_distances(
-        centers[0], X, Y_norm_squared=x_squared_norms, squared=True)
+        centers[0].reshape(1,-1), X, Y_norm_squared=x_squared_norms, squared=True)
     current_pot = closest_dist_sq.sum()
-
+    
     # Pick the remaining n_clusters-1 points
     for c in range(1, n_clusters):
         # Choose center candidates by sampling with probability proportional
@@ -91,6 +91,7 @@ def kmeans_subsample(X, n_clusters, random_state=None, n_local_trials=10):
         closest_dist_sq = best_dist_sq
 
     return centers
+
 
 # selects the outliers
 def knn_dist(x, x_ctrl, s=100, p=1):

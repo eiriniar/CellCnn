@@ -6,6 +6,11 @@ import matplotlib.cm as cm
 import matplotlib.gridspec as gridspec
 import seaborn as sns
 from cellCnn.utils import mkdir_p
+from sklearn.manifold import TSNE
+from  sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+from lifelines.estimation import KaplanMeierFitter
+
                     
 def clean_axis(ax):
     ax.get_xaxis().set_ticks([])
@@ -100,7 +105,7 @@ def visualize_results(res, outdir, prefix,
     if 'clustering_results' in plots:
         
         cl_res = res['clustering_result']
-        
+
         if cl_res is not None:
             w_full = cl_res['w']
             Z = cl_res['cluster_linkage']
@@ -111,6 +116,8 @@ def visualize_results(res, outdir, prefix,
             clmap = sns.clustermap(pd.DataFrame(w_full, columns=labels+['bias', 'out']),
                                 method='average', metric='cosine', row_linkage=Z,
                                 col_cluster=False, robust=True, yticklabels=clusters)
+            plt.setp(clmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
+            plt.setp(clmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
             clmap.cax.set_visible(False)
             fig_path = os.path.join(outdir, prefix+'_all_filters.'+format)
             plt.savefig(fig_path, format=format)
@@ -120,6 +127,30 @@ def visualize_results(res, outdir, prefix,
             sys.stderr.write("Clustering was not performed.\n")
             sys.exit(-1)
 
+
+def plot_KM(stime, censor, g1, pval, figname):
+    sns.set_style('white')
+    kmf = KaplanMeierFitter()        
+    f, ax = plt.subplots(figsize=(3, 3))
+    np.set_printoptions(precision=2, suppress=False)
+    kmf.fit(stime[g1], event_observed=censor[g1], label=["high-risk group"])
+    kmf.plot(ax=ax, ci_show=False, show_censors=True)
+    kmf.fit(stime[~g1], event_observed=censor[~g1], label=["low-risk group"])
+    kmf.plot(ax=ax, ci_show=False, show_censors=True)
+    ax.grid(b=False)
+    sns.despine()
+    plt.ylim(0,1)
+    plt.xlabel("time", fontsize=14)
+    plt.ylabel("survival", fontsize=14)
+    plt.text(0.7, 0.85, 'pval = %.2e' % (pval), fontdict={'size': 12},
+            horizontalalignment='center', verticalalignment='center',
+            transform=ax.transAxes) 
+    plt.xticks(rotation=45)
+    for item in (ax.get_xticklabels() + ax.get_yticklabels()):
+        item.set_fontsize(10)
+    plt.tight_layout()
+    plt.savefig(figname, format='eps')
+    plt.close()
 
 
 def organize_plates(x, y, int_ctype, le, params, yi=1, stim_name='GM-CSF',
@@ -364,5 +395,168 @@ def scatterplot(x, y, z, xtick_labels, ytick_labels, xlabel, ylabel, plotdir,
     plt.clf()
     plt.close()
 
+
+def produce_tsne_plot(lookup, filter_weights, outdir, labels,
+                        yi=1, key='Dasatinib', format='png'):
+
+    W = filter_weights[:-2]
+    b = filter_weights[-2]
+
+    val = lookup[key]
+    x, y, int_ctype = val
+
+    # z-transform the intracellular protein expressions that will be processed by the network
+    x_cnn = x[:,10:].copy()
+    x_cnn = StandardScaler().fit_transform(x_cnn)
     
+    # keep only the stimulated class
+    x = x[y == yi]
+    x_cnn = x_cnn[y == yi]
+    act_cnn = rectify(np.sum(W.reshape(1, -1) * x_cnn, axis=1) + b)
+     
+    # create a tsne plot
+    model = TSNE(n_components=2, random_state=0)
+    z = model.fit_transform(StandardScaler().fit_transform(x[:,:10]))
+    np.save(os.path.join(outdir, key+'_tsne_projection.npy'), z)
+    #z = np.load(os.path.join(outdir, key+'_tsne_projection.npy'))
+    n_clusters=20
+    cl_pred = KMeans(n_clusters=n_clusters, random_state=0).fit_predict(z)
+
+    # plot the tSNE map
+    plt.figure(figsize=(3, 3))
+    ax = plt.subplot(aspect='equal')
+    ax.scatter(z[:,0], z[:,1], s=2, marker='o', c=act_cnn, cmap=cm.jet,
+                   alpha=0.5, edgecolors='face', vmin=0, 
+                    vmax=np.percentile(act_cnn[act_cnn>0], 95))
+    #print np.percentile(act_cnn[act_cnn>0], 95)
+    plt.xlim(-15, 15)
+    plt.ylim(-15, 15)
+    ax.axis('off')
+    ax.axis('tight')
+    plt.savefig(os.path.join(outdir, key + 'tsne.'+ format), format=format)
+    plt.clf()
+    plt.close()
     
+    # and the clusters
+    plt.figure(figsize=(3, 3))
+    ax = plt.subplot(aspect='equal')
+    ax.scatter(z[:,0], z[:,1], s=2, marker='o', c=cl_pred, cmap=cm.jet,
+                    alpha=0.3, edgecolors='face')
+    txts = []
+    for i in range(n_clusters):
+        # position of each label
+        xtext, ytext = np.median(z[cl_pred == i, :], axis=0)
+        txt = ax.text(xtext, ytext, str(i), fontsize=10)
+        txts.append(txt)
+    
+    plt.ylim(-15, 15)
+    ax.axis('off')
+    ax.axis('tight')
+    plt.savefig(os.path.join(PLOT_PATH, key + 'tsne_clusters.' + format), format=format)
+    plt.clf()
+    plt.close()
+    
+    ''' set the corresponding clusters per cell type
+    y_monocytes = np.logical_or(cl_pred == 5, cl_pred == 8, cl_pred == 16)
+    y_dendritic = cl_pred == 10
+
+    # selected biaxial plots #
+    ##########################
+
+    # indices for CD45, CD123
+    idx = [0, 9]
+    x_dendritic = x[:,idx]
+    labels_dendritic = [labels[i] for i in idx]
+    plot_biaxial(x_dendritic, y_dendritic, labels_dendritic, outdir, 'CD123')
+    
+    # indices for CD45, CD33
+    idx = [0, 6]
+    x_monocytes = x[:,idx]
+    labels_monocytes = [labels[i] for i in idx]
+    plot_biaxial(x_monocytes, y_monocytes, labels_monocytes, outdir, 'CD33')
+    '''
+
+
+def plot_biaxial(x, y, labels, outdir, prefix):
+
+    palette = np.array(sns.color_palette("Set2", 2))
+    plt.figure(figsize=(3, 3))
+    ax = plt.subplot(aspect='equal')
+    ax.scatter(x[y==0,0], x[y==0,1], s=2, alpha=0.5,
+               c=palette[0], edgecolors='face')
+    ax.scatter(x[y==1,0], x[y==1,1], s=2, alpha=0.5,
+               c=palette[1], edgecolors='face')
+
+    plt.ylim(-1, 5)
+    plt.xlabel(labels[0], fontsize=18)
+    plt.ylabel(labels[1], fontsize=18)
+    plt.tight_layout()
+    sns.despine()
+    plt.savefig(os.path.join(outdir, prefix + '_biaxial.eps'),
+                format='eps')
+    plt.clf()
+    plt.close()
+
+
+''' plots the colormap
+
+a = np.linspace(0, 1, 256).reshape(1,-1)
+a = np.vstack((a,a))
+maps = sorted(m for m in plt.cm.datad if  m == "jet")
+nmaps = len(maps) + 1
+
+for i,m in enumerate(maps):
+    fig = plt.figure(figsize=(1,0.3))
+    fig.subplots_adjust(top=0.99, bottom=0.01, left=0.2, right=0.99)
+    plt.axis("off")
+    plt.imshow(a, aspect='auto', cmap=plt.get_cmap(m), origin='lower')
+    #plt.tight_layout()
+    fig_path = os.path.join(PLOT_PATH, 'cmap_jet.eps')
+    plt.savefig(fig_path, format='eps')
+    plt.close()
+'''
+
+''' plot time-dependent ROC curves
+
+    given: stime, censor, risk_prediction
+
+    from rpy2 import robjects
+    from rpy2.robjects.packages import importr
+
+    tp = [1025, 1500, 2000]
+    tROC = importr('timeROC')
+    ytimeR = robjects.FloatVector(stime)
+    ystatusR = robjects.FloatVector(censor)
+    pR = robjects.FloatVector(risk_prediction)
+    times = robjects.FloatVector(tp)
+    
+    fit = tROC.timeROC(T=ytimeR, delta=ystatusR, marker=pR,
+                       cause=1, weighting="marginal",
+                       times=times, iid=True)
+    conf_int_R = tROC.confint_ipcwsurvivalROC(fit)
+    conf_int = np.array(conf_int_R.rx2('CI_AUC'))
+    
+    for idx in range(len(tp)):
+        low, high = conf_int[idx] / 100
+        
+        TP = np.array(fit.rx2('TP'))[:,idx]
+        FP = np.array(fit.rx2('FP'))[:,idx]
+        AUC = np.array(fit.rx2('AUC'))[idx]
+        
+        plt.figure()
+        part1 = 'AUC = %.2f ' % (AUC)
+        part2 = '(95% CI'
+        part3 = '%.2f - %.2f)' % (low, high)
+        plt.plot(FP, TP, label=' '.join([part1, part2, part3]))
+        plt.plot([0, 1], [0, 1], 'k--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('1 - specificity')
+        plt.ylabel('sensitivity')
+        plt.title('Time-dependent ROC curve at t=' + str(tp[idx]))
+        plt.legend(loc="lower right", prop={'size':10})
+        plt.savefig(os.path.join(outdir, 'test_ROC_curve_'+str(tp[idx])+'.eps'),
+                    format='eps')
+        plt.close()
+    '''
+
