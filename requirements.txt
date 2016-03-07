@@ -2,7 +2,7 @@
 numpy>=1.10
 scipy
 pandas>=0.15
-seaborn
+seaborn==0.7
 tabulate
 lifelines	# only for survival analysis
 scikit-learn>=0.16.1
