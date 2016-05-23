@@ -10,6 +10,7 @@ from sklearn.manifold import TSNE
 from  sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from lifelines.estimation import KaplanMeierFitter
+from mpl_toolkits.axes_grid1 import ImageGrid
 
                     
 def clean_axis(ax):
@@ -56,6 +57,160 @@ def plot_marker_distribution(datalist, namelist, labels, grid_size,
         plt.show()
 
 
+def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9,9),
+                   suffix='png'):
+   
+    ncol = x.shape[1]
+    if labels is None:
+        labels = [str(a) for a in np.range(ncol)]
+
+    fig = plt.figure(figsize=fig_size)
+    fig.clf()
+    g_i, g_j = grid_size
+    grid = ImageGrid(fig, 111, 
+                     nrows_ncols=(g_i, g_j),
+                     ngrids = ncol,
+                     aspect=True,
+                     direction="row",
+                     axes_pad=(0.15, 0.5),
+                     add_all=True,
+                     label_mode="1",
+                     share_all=True,
+                     cbar_location="top",
+                     cbar_mode="each",
+                     cbar_size="8%",
+                     cbar_pad="5%",
+                     )
+
+    for seq_index, ax in enumerate(grid):
+        ax.text(0, .92, labels[seq_index],
+                horizontalalignment='center',
+                transform=ax.transAxes, size=20, weight='bold')
+        vmin = np.percentile(x[:,seq_index], 1)
+        vmax = np.percentile(x[:,seq_index], 99)
+        im = ax.scatter(z[:,0], z[:,1], s=.5, marker='o', c=x[:,seq_index], cmap=cm.jet,
+                        alpha=0.5, edgecolors='face', vmin=vmin, vmax=vmax)                
+        ax.cax.colorbar(im)            
+        clean_axis(ax)
+        ax.grid(False)
+                 
+    plt.savefig('.'.join([fig_path, suffix]), format=suffix)
+    plt.clf()
+    plt.close()
+
+
+def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, grid_size, fig_path,
+                             labels=None, fig_size=(9,9), suffix='png', text_annot=None):
+    ncol = x_pos.shape[1]
+    if labels is None:
+        labels = [str(a) for a in np.range(ncol)]
+    
+    fig = plt.figure(figsize=fig_size)
+    fig.clf()
+    g_i, g_j = grid_size
+    grid = ImageGrid(fig, 111, 
+                     nrows_ncols=(g_i, g_j),
+                     ngrids = ncol,
+                     aspect=True,
+                     direction="row",
+                     axes_pad=(0.15, 0.5),
+                     add_all=True,
+                     label_mode="1",
+                     share_all=True,
+                     cbar_location="top",
+                     cbar_mode="each",
+                     cbar_size="8%",
+                     cbar_pad="5%",
+                     )
+    for seq_index, ax in enumerate(grid):
+        ax.text(0, .92, labels[seq_index],
+                horizontalalignment='center',
+                transform=ax.transAxes, size=20, weight='bold')
+        a = x_pos[:, seq_index]
+        ax.scatter(z_neg[:,0], z_neg[:,1], s=.5, marker='o', c='lightgray',
+                    alpha=0.5, edgecolors='face')                
+        im = ax.scatter(z_pos[:,0], z_pos[:,1], s=.5, marker='o', c=a, cmap=cm.jet,
+                        edgecolors='face', vmin=vmin[seq_index], vmax=vmax[seq_index])
+        ax.cax.colorbar(im)            
+        clean_axis(ax)
+        ax.grid(False)
+  
+    plt.savefig('.'.join([fig_path, suffix]), format=suffix)
+    plt.clf()
+    plt.close()
+
+
+def plot_tsne_per_sample(z_list, data_list, data_labels, fig_dir, fig_size=(9,9),
+                        density=True, scatter=True, colors=None, pref=''):
+
+    if colors is None:
+        colors = sns.color_palette("husl", len(data_list))
+    start = 0
+
+    fig = plt.figure(figsize=fig_size)
+    for i, x in enumerate(data_list):
+        z = z_list[i]
+        plt.scatter(z[:, 0], z[:, 1], s=1, marker='o', c=colors[i],
+                    alpha=0.5, edgecolors='face', label=data_labels[i])
+
+    plt.legend(loc="upper left", markerscale=20., scatterpoints=1, fontsize=10)
+    plt.savefig(os.path.join(fig_dir, 'tsne_all_samples.png'), format='png')
+    plt.clf()
+    plt.close()
+
+    # density plots
+    if density:
+        for i, x in enumerate(data_list):
+            fig = plt.figure(figsize=fig_size)
+            z = z_list[i]
+            sns.kdeplot(z[:, 0], z[:, 1], n_levels=30, shade=True)
+            plt.title(data_labels[i])
+            plt.savefig(os.path.join(fig_dir, pref+'tsne_density_%d.png' % i), format='png')
+            plt.clf()
+            plt.close()
+
+    if scatter:
+        for i, x in enumerate(data_list):
+            fig = plt.figure(figsize=fig_size)
+            z = z_list[i]
+            plt.scatter(z[:, 0], z[:, 1], s=1, marker='o', c=colors[i],
+                        alpha=0.5, edgecolors='face')
+            plt.title(data_labels[i])
+            plt.savefig(os.path.join(fig_dir, pref+'tsne_scatterplot_%d.png' % i), format='png')
+            plt.clf()
+            plt.close()
+
+
+def plot_histograms(datalist, labels, fig_path=None, letter_size=16):
+    nmark = len(labels)
+    colors = sns.color_palette("Set2", n_colors=len(datalist))
+ 
+    for seq_index in range(nmark):
+        fig = plt.figure()
+        for ii, x in enumerate(datalist):
+            plt.hist(x[:,seq_index], 100, normed=1, facecolor=colors[ii], alpha=0.5)
+
+        plt.title(labels[seq_index])
+        if fig_path is not None:
+            plt.savefig(fig_path+'_'+labels[seq_index]+'.png')
+            plt.clf()  
+            plt.close()
+        else:
+            plt.show()
+
+def plot_nn_weights(w, x_labels, y_labels, fig_path, row_linkage=None, fig_size=(10, 3)):
+    plt.figure(figsize=fig_size)
+    clmap = sns.clustermap(pd.DataFrame(w, columns=x_labels),
+                            method='average', metric='cosine', row_linkage=row_linkage,
+                            col_cluster=False, robust=True, yticklabels=y_labels)
+    plt.setp(clmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
+    plt.setp(clmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
+    clmap.cax.set_visible(False)
+    plt.savefig(fig_path)
+    plt.clf()
+    plt.close()
+
+
 def visualize_results(res, outdir, prefix,
                       plots=['consensus', 'clustering_results'],
                       format='png'):
@@ -92,7 +247,7 @@ def visualize_results(res, outdir, prefix,
             
         plt.figure(figsize=figsize)
         ax = sns.heatmap(pd.DataFrame(w_best_net, columns=labels + ['bias','out']),
-                        robust=True, yticklabels=False)
+                        robust=True)
         plt.xticks(rotation=90)
         ax.tick_params(axis='both', which='major', labelsize=20)
         plt.tight_layout()
@@ -296,7 +451,7 @@ def plot_CellCnn_PR_curves(prec, recall, seq, seq_labels, nclust, plotdir, key):
     plt.savefig(os.path.join(plotdir, key+'_CellCnn_PRcurve.eps'),
                 format='eps')
     plt.close()
-        
+
 
 def return_FP(y_true, y_pred, TP):
     idx = np.argsort(y_pred)[::-1]
@@ -306,14 +461,34 @@ def return_FP(y_true, y_pred, TP):
         tot_count += 1
         TP_count += y_true[idx[tot_count-1]]
     return (tot_count - TP_count)
+
+
+def return_FP_cutoff(y_true, y_pred, cutoff):
+    pos_true = y_true[y_pred > cutoff]
+    P_count = length(pos_true)
+    FP_count = np.sum(pos_true == 0)
+    return FP_count, P_count
+
     
 def plot_barcharts(y_true, cnn_pred , outlier_pred, mean_pred, sc_pred,
-                    nblast, label, plotdir, key, at_recall=0.8, include_citrus=False):
-    ntop = int(at_recall * nblast)
-    count_h_cnn = return_FP(y_true, cnn_pred, ntop)
-    count_h_outlier = return_FP(y_true, outlier_pred, ntop)
-    count_h_mean = return_FP(y_true, mean_pred, ntop)
-    count_h_sc = return_FP(y_true, sc_pred, ntop)
+                    nblast, label, plotdir, key, at_recall=0.8,
+                    include_citrus=False, cutoff=None):
+
+    if cutoff is None:
+        ntop = int(at_recall * nblast)
+        count_h_cnn = return_FP(y_true, cnn_pred, ntop)
+        count_h_outlier = return_FP(y_true, outlier_pred, ntop)
+        count_h_mean = return_FP(y_true, mean_pred, ntop)
+        count_h_sc = return_FP(y_true, sc_pred, ntop)
+        count_tot_cnn = ntop + count_h_cnn
+        count_tot_outlier = ntop + count_h_outlier
+        count_tot_mean = ntop + count_h_mean
+        count_tot_sc = ntop + count_h_sc
+    else:
+        count_h_cnn, count_tot_cnn = return_FP_cutoff(y_true, cnn_pred, cutoff)
+        count_h_outlier, count_tot_outlier = return_FP_cutoff(y_true, outlier_pred, cutoff)
+        count_h_mean, count_tot_mean = return_FP_cutoff(y_true, mean_pred, cutoff)
+        count_h_sc, count_tot_sc = return_FP_cutoff(y_true, sc_pred, cutoff)
     
     methods = ['CellCnn', 'outlier', 'mean', 'sc']
     if include_citrus:
@@ -321,10 +496,10 @@ def plot_barcharts(y_true, cnn_pred , outlier_pred, mean_pred, sc_pred,
         
     n_method = len(methods)
     arr = np.zeros((n_method, 2), dtype=float)
-    arr[0] = np.array([count_h_cnn, ntop+count_h_cnn])
-    arr[1] = np.array([count_h_outlier, ntop+count_h_outlier])
-    arr[2] = np.array([count_h_mean, ntop+count_h_mean])
-    arr[3] = np.array([count_h_sc, ntop+count_h_sc])
+    arr[0] = np.array([count_h_cnn, count_tot_cnn])
+    arr[1] = np.array([count_h_outlier, count_tot_outlier])
+    arr[2] = np.array([count_h_mean, count_tot_mean])
+    arr[3] = np.array([count_h_sc, count_tot_sc])
     
     # only include if we already have results from a Citrus run in R
     if include_citrus:
