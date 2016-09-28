@@ -20,33 +20,6 @@ def clean_axis(ax):
 	for sp in ax.spines.values():
 		sp.set_visible(False)
 
-# http://stackoverflow.com/questions/30145957/plotting-2d-kernel-density-estimation-with-python
-def add_contour(data, ax):
-	x = data[:, 0]
-	y = data[:, 1]
-	xmin, xmax = np.min(x), np.max(x)
-	ymin, ymax = np.min(y), np.max(y)
-
-	# Peform the kernel density estimate
-	xx, yy = np.mgrid[xmin:xmax:100j, ymin:ymax:100j]
-	positions = np.vstack([xx.ravel(), yy.ravel()])
-	values = np.vstack([x, y])
-	kernel = gaussian_kde(values)
-	f = np.reshape(kernel(positions).T, xx.shape)
-
-	#fig = pl.figure()
-	#ax = fig.gca()
-	
-	# Contourf plot
-	#cfset = ax.contourf(xx, yy, f, cmap='Blues')
-	## Or kernel density estimate plot instead of the contourf plot
-	#ax.imshow(np.rot90(f), cmap='Blues', extent=[xmin, xmax, ymin, ymax])
-	# Contour plot
-	cset = ax.contour(xx, yy, f, n_levels=30, colors='lightgray')
-	# Label plot
-	#ax.clabel(cset, inline=1, fontsize=16)
-	return ax
-
 
 def plot_marker_distribution(datalist, namelist, labels, grid_size,
 							 fig_path=None, letter_size=16, figsize=(9,9), ks_list=None):
@@ -64,18 +37,12 @@ def plot_marker_distribution(datalist, namelist, labels, grid_size,
 			seq_index = g_j * i + j
 			if seq_index < nmark:
 				ax = fig.add_subplot(grid[i,j])
-				#ax.xaxis.set_ticks(range(-2,6,2))
-				#ax.set_title(labels[seq_index], fontsize=letter_size)
-				#ax.axes([.1,.1,.8,.7])
 				if ks_list is not None:
 					ax.text(.5, 1.2, labels[seq_index], fontsize=letter_size, ha='center', transform=ax.transAxes)
 					ax.text(.5, 1.02, ks_list[seq_index], fontsize=letter_size-4, ha='center', transform=ax.transAxes)
 				else:
 					ax.text(.5, 1.1, labels[seq_index], fontsize=letter_size, ha='center', transform=ax.transAxes)
-				#start = .5
-				#ax.text(start,.85, labels[seq_index],
-				#	horizontalalignment='center',
-				#	transform=ax.transAxes, size=letter_size)    
+ 
 				for i_name, (name, x) in enumerate(zip(namelist, datalist)):
 					lower = np.percentile(x[:,seq_index], 0.5)
 					upper = np.percentile(x[:,seq_index], 99.5)

@@ -1,7 +1,7 @@
 import sys, os
 import numpy as np
 from sklearn.cross_validation import StratifiedKFold
-from  sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.utils import shuffle
 from sklearn.linear_model import LogisticRegression
 import copy
@@ -9,10 +9,8 @@ import copy
 from cellCnn.utils import combine_samples, landmark_normalization, normalize_outliers_to_control, normalize_outliers
 from cellCnn.utils import compute_consensus_profiles, keras_param_vector
 from cellCnn.utils import generate_subsets, generate_biased_subsets
-#from cellCnn.theano_utils import float32, int32, EarlyStopping, MyNeuralNet, mixed_loss
-#from cellCnn.theano_utils import weight_decay_objective, SelectCellLayer, GaussConv1DLayer, CustomMaxPoolLayer
 from cellCnn.downsample import knn_dist, knn_dist_memory_optimized
-from cellCnn.theano_utils import select_top, ForwardLayer, multi_class_acc, ParametricSigmoid
+from cellCnn.theano_utils import select_top
 from cellCnn.theano_utils import float32, int32, activity_KL, select_thres
 
 import theano
@@ -32,123 +30,16 @@ import seaborn as sns
 from scipy.stats import kendalltau
 
 
-def get_sparse_filters(filters, scaler, valid_samples, valid_phenotypes, drop_percentage):
-
-	def relu(x):
-		return x * (x > 0)
-
-	nmark = valid_samples[0].shape[1]
-	n_classes = len(np.unique(valid_phenotypes))
-	selected_filters = np.zeros((n_classes-1, nmark))
-	sparse_filters = np.zeros((n_classes-1, nmark))	
-	ntop = 30
-
-	# use the validation samples to select good filters
-	# for each filter, choose top 30 cells from each class
-	# to get an estimate of the activation differences between classes
-	
-	valid_ctrl = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == 0])	
-	x0 = scaler.transform(valid_ctrl)
-	filter_idx = []
-
-	for i in range(1, n_classes):
-		x1 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == i])
-		x1 = scaler.transform(x1)
-		
-		idx = -1
-		max_diff = -1
-
-		for ii, foo in enumerate(filters):
-
-			if (foo[nmark+1] < 0) and (foo[nmark+1+i] > 0):
-				w, b = foo[:nmark], foo[nmark]
-				g0 = relu(np.sum(w.reshape(1,-1) * x0, axis=1) + b)
-				g1 = relu(np.sum(w.reshape(1,-1) * x1, axis=1) + b)
-				d = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
-
-				if d > max_diff:
-					max_diff = d
-					idx = ii
-
-		# now we have the best filter for this specific class
-		w = filters[idx, :nmark]
-		filter_idx.append(idx)
-		selected_filters[i-1] = w
-		sign_w = np.sign(w)
-
-		'''
-		# perform feature selection as well
-		dlist = []
-		thresholds = []
-		thres = 0
-		d_init = 0
-
-		while np.max(abs(w)) > 0:
-			w = sign_w * relu(abs(w) - thres)
-			w_norm = w / np.linalg.norm(w, ord=2)
-			g0 = np.sum(w_norm.reshape(1,-1) * x0, axis=1)
-			g1 = np.sum(w_norm.reshape(1,-1) * x1, axis=1)
-			d = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
-			#print d
-
-			if thres == 0:
-				d_init = d
-
-			if (d_init - d) > drop_percentage * d_init:
-				w = np.sign(w) * relu(abs(w) - thresholds[-1])
-				break
-			else:
-				dlist.append(d)
-				thresholds.append(thres)
-				thres = np.min(abs(w[abs(w) > 0]))
-
-		sparse_filters[i-1] = w
-		'''
-
-	return selected_filters, sparse_filters, filter_idx
-
-
-def get_tau(filters, scaler, valid_samples, valid_phenotypes):
-
-	def relu(x):
-		return x * (x > 0)
-
-	nmark = valid_samples[0].shape[1]
-	nsample = len(valid_samples)
-	tau = np.zeros((len(filters), 1))
-	
-	for ii, foo in enumerate(filters):
-		w, b, w_out = foo[:nmark], foo[nmark], foo[-1]
-
-		# sort the features according to their weight
-		sorted_idx = np.argsort(abs(w))[::-1]
-		decr_w = w[sorted_idx]
-
-		for imark in range(0, 1):
-			stop = nmark - imark
-
-			y_pred = np.zeros(nsample)
-			for jj, x in enumerate(valid_samples):
-				x = scaler.transform(x.copy())
-				x = x[:, sorted_idx]
-				y_pred[jj] = w_out * np.mean(relu(np.sum(decr_w[:stop].reshape(1,-1) * x[:,:stop], axis=1) + b))
-
-			# compute Kendall's tau for filter ii, for a given number of markers
-			tau[ii, imark] = kendalltau(y_pred, np.array(valid_phenotypes))[0]
-
-	return tau
-
-
 def train_model(train_samples, train_phenotypes, labels,
 				valid_samples=None, valid_phenotypes=None, generate_valid_set=True,
 				train_sample_flags=None, valid_sample_flags=None, 
 				landmark_norm=None, scale=True, 
 				ncell=500, nsubset=4096, subset_selection='random', nrun=10,
-				pooling='max', ncell_pooled=[1], regression=False, nfilter_choice=[2,3,4,5],
+				pooling='max', ncell_pooled=[1,3,5], regression=False, nfilter_choice=[2,3,4,5],
 				learning_rate=None, coeff_l1=0, coeff_l2=1e-4, dropout=False,
 				coeff_activity=0, max_epochs=50, verbose=1,
-				mode='supervised', drop_percentage=.1, patience=10,
-				select_filters='consensus', dendrogram_cutoff=0.5,
+				mode='supervised', patience=10,
+				select_filters='consensus', dendrogram_cutoff=0.4,
 				accur_thres=.95, outdir=None):
 	
 	'''
@@ -181,13 +72,11 @@ def train_model(train_samples, train_phenotypes, labels,
 		ctrl_list = [train_samples[i] for i in np.where(np.array(train_phenotypes) == 0)[0]]
 		test_list = [train_samples[i] for i in np.where(np.array(train_phenotypes) != 0)[0]]
 		train_samples = normalize_outliers_to_control(ctrl_list, test_list)
-		#train_samples = [normalize_outliers(x) for x in train_samples]
 
 		if valid_samples is not None:
 			ctrl_list = [valid_samples[i] for i in np.where(np.array(valid_phenotypes) == 0)[0]]
 			test_list = [valid_samples[i] for i in np.where(np.array(valid_phenotypes) != 0)[0]]
 			valid_samples = normalize_outliers_to_control(ctrl_list, test_list)
-			#valid_samples = [normalize_outliers(x) for x in valid_samples]
 
 	if (valid_samples is None) and (not generate_valid_set):
 		sample_ids = range(len(train_phenotypes))
@@ -211,7 +100,6 @@ def train_model(train_samples, train_phenotypes, labels,
 		sample_ids = range(len(valid_phenotypes))
 		X_valid, id_valid, z_valid = combine_samples(valid_samples, sample_ids, valid_sample_flags)
 
-	# scale all marker distributions to (-1, 1)
 	if scale:
 		z_scaler = StandardScaler()
 		z_scaler.fit(X_train)
@@ -236,7 +124,6 @@ def train_model(train_samples, train_phenotypes, labels,
 	nmark = X_train.shape[1]
    
 	# generate multi-cell inputs
-
 	print 'Generating multi-cell inputs...'
 
 	if subset_selection == 'outlier':
@@ -245,13 +132,11 @@ def train_model(train_samples, train_phenotypes, labels,
 		x_ctrl_train = X_train[y_train == 0]
 		to_keep = int(0.1 * (X_train.shape[0] / len(train_phenotypes)))
 		nsubset_ctrl = nsubset / np.sum(train_phenotypes == 0)
-		print 'nsubset control: %d' % nsubset_ctrl
 
 		# allow each class to have different number of subsets
 		nsubset_biased = [0]
 		for pheno in range(1, len(np.unique(train_phenotypes))):
 			nsubset_biased.append(nsubset / np.sum(train_phenotypes == pheno))
-			print 'nsubset biased: %d' % (nsubset / np.sum(train_phenotypes == pheno))
 		
 		X_tr, y_tr = generate_biased_subsets(X_train, train_phenotypes, id_train, x_ctrl_train,
 											nsubset_ctrl, nsubset_biased, ncell, to_keep,
@@ -259,39 +144,32 @@ def train_model(train_samples, train_phenotypes, labels,
 											id_biased=np.where(train_phenotypes != 0)[0])
 
 		# save those because it takes long to generate
-		np.save(os.path.join(outdir, 'X_tr.npy'), X_tr)
-		np.save(os.path.join(outdir, 'y_tr.npy'), y_tr)
-		
-
-		X_tr = np.load(os.path.join(outdir, 'X_tr.npy'))
-		y_tr = np.load(os.path.join(outdir, 'y_tr.npy'))
+		#np.save(os.path.join(outdir, 'X_tr.npy'), X_tr)
+		#np.save(os.path.join(outdir, 'y_tr.npy'), y_tr)
+		#X_tr = np.load(os.path.join(outdir, 'X_tr.npy'))
+		#y_tr = np.load(os.path.join(outdir, 'y_tr.npy'))
 		
 		if (valid_samples is not None) or generate_valid_set:
 			
 			x_ctrl_valid = X_valid[y_valid == 0]
 			nsubset_ctrl = nsubset / np.sum(valid_phenotypes == 0)
-			print 'nsubset control: %d' % nsubset_ctrl
-
+			
 			# allow each class to have different number of subsets
 			nsubset_biased = [0]
 			for pheno in range(1, len(np.unique(valid_phenotypes))):
 				nsubset_biased.append(nsubset / np.sum(valid_phenotypes == pheno))
-				print 'nsubset biased: %d' % (nsubset / np.sum(valid_phenotypes == pheno))
 
 			to_keep = int(0.1 * (X_valid.shape[0] / len(valid_phenotypes)))
-			
 			X_v, y_v = generate_biased_subsets(X_valid, valid_phenotypes, id_valid, x_ctrl_valid,
 												nsubset_ctrl, nsubset_biased, ncell, to_keep,
 												id_ctrl=np.where(valid_phenotypes == 0)[0],
 												id_biased=np.where(valid_phenotypes != 0)[0])
 
 			# save those because it takes long to generate
-			np.save(os.path.join(outdir, 'X_v.npy'), X_v)
-			np.save(os.path.join(outdir, 'y_v.npy'), y_v)
-			
-
-			X_v = np.load(os.path.join(outdir, 'X_v.npy'))
-			y_v = np.load(os.path.join(outdir, 'y_v.npy'))
+			#np.save(os.path.join(outdir, 'X_v.npy'), X_v)
+			#np.save(os.path.join(outdir, 'y_v.npy'), y_v)
+			#X_v = np.load(os.path.join(outdir, 'X_v.npy'))
+			#y_v = np.load(os.path.join(outdir, 'y_v.npy'))
 
 		else:
 			cut = X_tr.shape[0] / 5
@@ -345,16 +223,10 @@ def train_model(train_samples, train_phenotypes, labels,
 
 		if mode == 'supervised':
 
-			if True:
-				sigma = 10 ** np.random.uniform(-2, -1)
-			if True:
-				nfilter = np.random.choice(nfilter_choice)
-			if True:
-				learning_rate = 10 ** np.random.uniform(-3, -2)
-			if True:
-				k = np.random.choice(ncell_pooled)
-
-			print sigma, nfilter, learning_rate, k
+			sigma = 10 ** np.random.uniform(-2, -1)
+			learning_rate = 10 ** np.random.uniform(-3, -2)
+			nfilter = np.random.choice(nfilter_choice)
+			k = np.random.choice(ncell_pooled)
 
 			config['sigma'].append(sigma)
 			config['nfilter'].append(nfilter)
@@ -427,20 +299,15 @@ def train_model(train_samples, train_phenotypes, labels,
 
 			# extract the network parameters
 			w_store[irun] = model.get_weights()
-			for iw, w_array in enumerate(model.get_weights()):
-				print iw, w_array.shape
-		
+			#for iw, w_array in enumerate(model.get_weights()):
+			#	print iw, w_array.shape
 
 		# altervatively run in unsupervised mode
 		else:
-
-			if True:
-				sigma = np.random.uniform(low=0.1, high=0.5)
-			if True:
-				nfilter = np.random.choice([10, 20, 50, 100])
-			if True:
-				learning_rate = 10 ** np.random.uniform(-3, -1)
-
+			
+			sigma = np.random.uniform(low=0.1, high=0.5)
+			nfilter = np.random.choice([10, 20, 50, 100])
+			learning_rate = 10 ** np.random.uniform(-3, -1)
 			config['sigma'].append(sigma)
 			config['nfilter'].append(nfilter)
 			config['learning_rate'].append(learning_rate)
@@ -449,7 +316,6 @@ def train_model(train_samples, train_phenotypes, labels,
 			noisy_input = GaussianNoise(sigma=sigma)(data_input)
 			conv1 = Convolution1D(nfilter, 1, activation='sigmoid', 
 			                     W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-			                     #activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
 			                     name='conv1')(noisy_input)
 			
 			# the autoencoder part
@@ -475,17 +341,11 @@ def train_model(train_samples, train_phenotypes, labels,
 
 			# extract the network parameters
 			w_store[irun] = model.get_weights()
-			for iw, w_array in enumerate(model.get_weights()):
-				print iw, w_array.shape
-			
 	
 	# which filter weights should we return
 	# 'best': return the filter weights of the model with highest validation accuracy
 	# 'consensus': return consensus filters based on hierarchical clustering
-	# 'consensus_priority': prioritize the consensus filter that corresponds 
-	#                       to the biggest cluster
-
-	# this option only makes sense if validation samples were provided/generated
+	
 	w_best_net, w_cons, cluster_res, sparse_filters = None, None, None, None
 	filter_idx = None
 	tau = None
@@ -496,30 +356,23 @@ def train_model(train_samples, train_phenotypes, labels,
 		w_best_net = keras_param_vector(best_net, regression)
 
 		if regression and (select_filters == 'best'):
-			tau = get_tau(w_best_net, z_scaler, train_samples + valid_samples,
-						list(train_phenotypes) + list(valid_phenotypes))
+			tau = get_filters_regression(w_best_net, z_scaler, valid_samples, list(valid_phenotypes))
 		elif select_filters == 'consensus':
 			w_cons, cluster_res = compute_consensus_profiles(w_store, accuracies, accur_thres,
 									regression, prioritize=False,
 									dendrogram_cutoff=dendrogram_cutoff)
-		elif select_filters == 'consensus_priority':
-			w_cons, cluster_res = compute_consensus_profiles(w_store, accuracies, accur_thres,
-									regression, prioritize=True,
-									dendrogram_cutoff=dendrogram_cutoff)
-		elif (not regression) and (select_filters == 'reduce_features'):
-			w_cons, sparse_filters, filter_idx = get_sparse_filters(w_best_net, z_scaler, valid_samples,
-									valid_phenotypes, drop_percentage)
+		elif (not regression) and (select_filters == 'best'):
+			w_cons, filter_idx = get_filters_classification(w_best_net, z_scaler, valid_samples,
+									valid_phenotypes)
 		else:
-			print 'Returning the best neural network.'
+			print 'Returning the only best neural network.'
 
-	
 	results = {
 		'clustering_result': cluster_res,
 		'best_net': best_net,
 		'w_best_net': w_best_net,
 		'selected_filters': w_cons,
 		'tau': tau,
-		'sparse_filters': sparse_filters,
 		'selected_filter_idx' : filter_idx,
 		'accuracies': accuracies,
 		'best_model_idx': best_accuracy_idx,
@@ -530,4 +383,69 @@ def train_model(train_samples, train_phenotypes, labels,
 	
 	return results
 
+
+def relu(x):
+	return x * (x > 0)
+
+
+# use the validation samples to select good filters
+# for each filter, choose top 30 cells from each class
+# to get an estimate of the activation differences between classes
+
+def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes):
+
+	nmark = valid_samples[0].shape[1]
+	n_classes = len(np.unique(valid_phenotypes))
+	selected_filters = np.zeros((n_classes-1, nmark))
+	ntop = 30
+	
+	valid_ctrl = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == 0])	
+	x0 = scaler.transform(valid_ctrl)
+	filter_idx = []
+
+	for i in range(1, n_classes):
+		x1 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == i])
+		x1 = scaler.transform(x1)
+		idx = -1
+		max_diff = -1
+
+		for ii, foo in enumerate(filters):
+
+			# if this filter is positive for the class of interest
+			# and negative for the control class
+			if (foo[nmark+1] < 0) and (foo[nmark+1+i] > 0):
+				w, b = foo[:nmark], foo[nmark]
+				g0 = relu(np.sum(w.reshape(1,-1) * x0, axis=1) + b)
+				g1 = relu(np.sum(w.reshape(1,-1) * x1, axis=1) + b)
+				d = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
+
+				if d > max_diff:
+					max_diff = d
+					idx = ii
+
+		# now we have the best filter for this specific class
+		filter_idx.append(idx)
+		selected_filters[i-1] = filters[idx, :nmark]
+
+	return selected_filters, filter_idx
+
+
+def get_filters_regression(filters, scaler, valid_samples, valid_phenotypes):
+
+	nmark = valid_samples[0].shape[1]
+	nsample = len(valid_samples)
+	tau = np.zeros((len(filters), 1))
+	
+	for ii, foo in enumerate(filters):
+		w, b, w_out = foo[:nmark], foo[nmark], foo[-1]
+
+		y_pred = np.zeros(nsample)
+		for jj, x in enumerate(valid_samples):
+			x = scaler.transform(x.copy())
+			y_pred[jj] = w_out * np.mean(relu(np.sum(w.reshape(1,-1) * x, axis=1) + b))
+
+		# compute Kendall's tau for filter ii
+		tau[ii, 0] = kendalltau(y_pred, np.array(valid_phenotypes))[0]
+
+	return tau
 

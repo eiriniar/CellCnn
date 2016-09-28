@@ -5,6 +5,7 @@ __pycache__/
 
 .DS_Store
 overview_CellCnn.txt
+cellCnn/bhtsne.py
 
 # data files
 *.pkl

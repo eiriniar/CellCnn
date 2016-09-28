@@ -21,4 +21,3 @@
 ### Usage
 
 Examples are provided in the subfolder `CellCnn/cellCnn/examples`.
-More detailed documentation will follow soon.
