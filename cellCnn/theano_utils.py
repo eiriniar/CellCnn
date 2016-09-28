@@ -1,11 +1,17 @@
 import numpy as np
 import theano.tensor as T
-from nolearn.lasagne import NeuralNet
-from lasagne.layers import Layer, get_output
-from lasagne.objectives import aggregate
-from lasagne.regularization import regularize_layer_params, l2
+#from nolearn.lasagne import NeuralNet
+#from lasagne import layers, init
+#from lasagne.layers import Layer, Conv1DLayer, get_output
+#from lasagne.objectives import aggregate, categorical_crossentropy, squared_error
+#from lasagne.regularization import regularize_network_params, regularize_layer_params, l2, l1
 from sklearn.preprocessing import LabelEncoder
 from time import time
+
+from keras.layers import Dense, Layer
+from keras import backend as K
+from keras import regularizers
+from keras.regularizers import Regularizer
 
 
 def float32(k):
@@ -20,13 +26,111 @@ def int32(k):
 def relu(x):
     return T.switch(x<0, 0, x)
 
+def select_top(x, k):
+    return T.mean(T.sort(x, axis=1)[:,-k:,:], axis=1)
 
+def select_top_robust(x, k):
+    return T.mean(T.sort(x, axis=1)[:,-(k+20):-20,:], axis=1)
+
+def select_thres(x, thres=.6):
+    max_feat = thres * T.max(x, axis=(0,1))
+    max_feat = T.reshape(max_feat, (1,1,-1))
+    max_feat = T.tile(max_feat, reps=(x.shape[0], x.shape[1], 1))
+    x = x * (x > max_feat)
+    return T.sum(x, axis=1) / 100
+
+def multi_class_acc(y_true, y_pred):
+    y_true_f = K.flatten(y_true)
+    y_pred_f = (K.flatten(y_pred) > 0.5)
+    return T.mean(T.eq(y_true_f, y_pred_f))
+
+def kl_divergence(p, p_hat):
+    return (p * K.log(p / p_hat)) + ((1-p) * K.log((1-p) / (1-p_hat)))
+
+class KL_ActivityRegularizer(Regularizer):
+    def __init__(self, l=0., p=0.1):
+        self.l = K.cast_to_floatx(l)
+        self.p = K.cast_to_floatx(p)
+        self.uses_learning_phase = True
+
+    def set_layer(self, layer):
+        self.layer = layer
+
+    def __call__(self, loss):
+        if not hasattr(self, 'layer'):
+            raise Exception('Need to call `set_layer` on '
+                            'ActivityRegularizer instance '
+                            'before calling the instance.')
+        regularized_loss = loss
+        for i in range(len(self.layer.inbound_nodes)):
+            output = K.sigmoid(0.1 * self.layer.get_output_at(i))
+            #output = self.layer.get_output_at(i)
+            p_hat = K.mean(K.abs(output))
+            regularized_loss += self.l * kl_divergence(self.p, p_hat)
+        return K.in_train_phase(regularized_loss, loss)
+
+    def get_config(self):
+        return {'name': self.__class__.__name__,
+                'l': float(self.l),
+                'p': float(self.p)}
+
+def activity_KL(l=0.01, p=0.1):
+    return KL_ActivityRegularizer(l=l, p=p)
+
+
+class ParametricSigmoid(Layer):
+
+    def __init__(self, beta_init=0.1, weights=None, activity_regularizer=None, **kwargs):
+        self.supports_masking = True
+        self.beta_init = K.cast_to_floatx(beta_init)
+        self.initial_weights = weights
+        self.activity_regularizer = regularizers.get(activity_regularizer)
+        super(ParametricSigmoid, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        input_shape = input_shape[1:]
+        self.betas = K.variable(self.beta_init * np.ones(input_shape),
+                                name='{}_betas'.format(self.name))
+        self.trainable_weights = [self.betas]
+
+        self.regularizers = []
+        if self.activity_regularizer:
+            self.activity_regularizer.set_layer(self)
+            self.regularizers.append(self.activity_regularizer)
+
+        if self.initial_weights is not None:
+            self.set_weights(self.initial_weights)
+            del self.initial_weights
+
+    def call(self, x, mask=None):
+        return K.sigmoid(self.betas * x)
+
+    def get_config(self):
+        config = {'beta_init': self.beta_init,
+                  'activity_regularizer': self.activity_regularizer.get_config() if self.activity_regularizer else None,}
+        base_config = super(ParametricSigmoid, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class ForwardLayer(Dense):
+    def __init__(self, **kwargs):
+        super(Forward, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        input_dim = input_shape[1]
+        initial_weight_value = np.random.random(output_dim)
+        self.W = K.variable(initial_weight_value)
+        self.trainable_weights = [self.W]
+
+    def call(self, x, mask=None):
+        output = K.dot(x, T.linalg.diag(T.nlinalg.diag(self.W)))
+        if self.bias:
+            output += self.b
+        return self.activation(output)
+
+'''
 class SelectCellLayer(Layer):
-    '''
-    Defines a custom layer for selecting cells
-    with top cell filter activity.
-    '''
-
+ 
     def __init__(self, incoming, num_cell=5, to_keep='high', **kwargs):
         super(SelectCellLayer, self).__init__(incoming, **kwargs)
         self.num_cell = num_cell
@@ -42,26 +146,155 @@ class SelectCellLayer(Layer):
             return T.sort(input, axis=-1)[:,:,-self.num_cell:]
 
 
+class CustomMaxPoolLayer(Layer):
+
+    def __init__(self, incoming, pool_function=T.argmax, **kwargs):
+        super(CustomMaxPoolLayer, self).__init__(incoming, **kwargs)
+        self.pool_function = pool_function
+
+    def get_output_shape_for(self, input_shape):
+        return [input_shape[0], input_shape[1], input_shape[1]]
+        
+    def get_output_for(self, input, **kwargs):
+        
+        assert input.ndim == 3
+        nobs, nfeat, ncell = input.shape
+        
+        fat_x = input.dimshuffle(1, 0, 2).reshape((nfeat, -1), ndim=2)
+        ind = self.pool_function(input, axis=2)
+        offset = T.arange(nobs) * ncell
+        ind = ind + offset.dimshuffle(0, 'x') 
+        s_ind = ind.flatten()
+
+        output = fat_x[:,s_ind]
+        return output.dimshuffle(1,0).flatten().reshape((nobs,nfeat,nfeat),ndim=3).dimshuffle(0,2,1)
+
+
+class GaussConv1DLayer(Conv1DLayer):
+
+    def __init__(self, incoming, num_filters, filter_size, W=init.GlorotUniform(),
+                 b=init.Constant(0.1), nonlinearity=None, **kwargs):
+        super(GaussConv1DLayer, self).__init__(incoming, num_filters=num_filters,
+                                                filter_size=filter_size,
+                                                W=W, b=b, nonlinearity=nonlinearity,
+                                                flip_filters=False, **kwargs)
+
+    # TODO: b should be (nfilter, nmark)
+
+    def convolve(self, input, **kwargs):
+        w = self.W.dimshuffle('x',0,1,2)
+        w = T.addbroadcast(w, 3)
+        b = self.b.dimshuffle('x',0,'x')
+        diff = w - input.dimshuffle(0,'x',1,2)
+        diff_norm = T.sum(diff ** 2, axis=2)
+        return T.exp(-diff_norm * (b ** 2))
+
+
+# code adapted from pylearn2, sparse autoencoders
+def KL(x, p, sigm_scale, sum_axis=(0, 2)):
+    p_hat = T.mean(T.nnet.sigmoid(sigm_scale * x), axis=sum_axis)
+    #kl = p * T.log(p / p_hat) + (1 - p) * \
+    #        T.log((1 - p) / (1 - p_hat))
+    return T.sum(p_hat)
+
+def mixed_loss(net_out, ae_out, target):
+    loss = categorical_crossentropy(net_out, target[:,0,0]) + 0.1 * squared_error(ae_out, target[:,:,1:])
+    return loss
+
+
 def weight_decay_objective(layers,
                         loss_function,
                         target,
-                        penalty_conv=1e-8,
-                        penalty_conv_type = l2,
-                        penalty_output=1e-8,
-                        penalty_output_type = l2,
+                        coeff_l1=1e-8,
+                        coeff_l2=1e-8,
+                        coeff_KL=0,
+                        target_KL=0.05,
+                        sigmoid_scale_KL=1,
                         aggregate=aggregate,
                         deterministic=False,
                         get_output_kw={}):
-    '''
-    Defines L2 weight decay on network weights. 
-    '''
+    
+    ae_out, net_out = get_output([layers[2], layers[-1]], deterministic=deterministic,
+                        **get_output_kw)
+    loss = loss_function(net_out, ae_out, target)
+    p1 = coeff_l1 * regularize_network_params(layers[-1], l1)
+    p2 = coeff_l2 * regularize_network_params(layers[-1], l2)
+    #p1 = coeff_l1 * regularize_layer_params(layers[-1], l1)
+    #p3 = 1e-4 * regularize_layer_params(layers[1], l1)
+    #p2 = coeff_l2 * regularize_layer_params(layers[1], l2)
+    losses = loss + p1 + p2
+    
+    if coeff_KL != 0:
+        mean_conv_activation = get_output(layers[1], deterministic=deterministic,
+                                            **get_output_kw)
+        p_KL = coeff_KL * KL(mean_conv_activation, target_KL, sigmoid_scale_KL)
+        losses = losses + p_KL
+
+    return aggregate(losses)
+
+
+def sparse_ae_objective(layers,
+                        loss_function,
+                        target,
+                        coeff=0.00001,
+                        p=0.05,
+                        aggregate=aggregate,
+                        deterministic=False,
+                        get_output_kw={}):
+    
     net_out = get_output(layers[-1], deterministic=deterministic,
                         **get_output_kw)
     loss = loss_function(net_out, target)
-    p1 = penalty_conv * regularize_layer_params(layers[1], penalty_conv_type)
-    p2 = penalty_output * regularize_layer_params(layers[-1], penalty_output_type)
-    losses = loss + p1 + p2
-    return aggregate(losses)
+    
+    if coeff != 0:
+        mean_hidden_activation = get_output(layers[1], deterministic=deterministic,
+                                            **get_output_kw)
+        p_KL = coeff * KL(mean_hidden_activation, p, 1, sum_axis=0)
+        loss = loss + p_KL
+
+    return aggregate(loss)
+
+
+# from Lasagne Recipes
+class ModifiedBackprop(object):
+
+    def __init__(self, nonlinearity):
+        self.nonlinearity = nonlinearity
+        self.ops = {}  # memoizes an OpFromGraph instance per tensor type
+
+    def __call__(self, x):
+        # We note the tensor type of the input variable to the nonlinearity
+        # (mainly dimensionality and dtype); we need to create a fitting Op.
+        tensor_type = x.type
+        # If we did not create a suitable Op yet, this is the time to do so.
+        if tensor_type not in self.ops:
+            # For the graph, we create an input variable of the correct type:
+            inp = tensor_type()
+            # We pass it through the nonlinearity (and move to GPU if needed).
+            outp = self.nonlinearity(inp)
+            # Then we fix the forward expression...
+            op = theano.OpFromGraph([inp], [outp])
+            # ...and replace the gradient with our own (defined in a subclass).
+            op.grad = self.grad
+            # Finally, we memoize the new Op
+            self.ops[tensor_type] = op
+        # And apply the memoized Op to the input we got.
+        return self.ops[tensor_type](x)
+
+def compile_saliency_function(net):
+    """
+    Compiles a function to compute the saliency maps and predicted classes
+    for a given minibatch of input images.
+    """
+    inp = net['input'].input_var
+    outp = lasagne.layers.get_output(net['fc1'], deterministic=True)
+
+    # the winner class
+    max_outp = T.max(outp, axis=1)
+    saliency = theano.grad(max_outp.sum(), wrt=inp)
+    max_class = T.argmax(outp, axis=1)
+    return theano.function([inp], [saliency, max_class])
+
 
 # taken from the nolearn tutorial
 # http://danielnouri.org/notes/2014/12/17/using-convolutional-neural-nets-to-detect-facial-keypoints-tutorial/
@@ -106,14 +339,14 @@ class EarlyStopping(object):
 
 
 class MyNeuralNet(NeuralNet):
-    '''
-     Slightly adapts the NeuralNet class defined in nolearn,
-     so that it accepts a predefined validation set.
-    '''
+    
+     # Slightly adapts the NeuralNet class defined in nolearn,
+     # so that it accepts a predefined validation set.
+    
         
     def fit(self, X_train, y_train, X_valid, y_valid, epochs=None):
-        X_train, y_train = self._check_good_input(X_train, y_train)
-        X_valid, y_valid = self._check_good_input(X_valid, y_valid)
+        #X_train, y_train = self._check_good_input(X_train, y_train)
+        #X_valid, y_valid = self._check_good_input(X_valid, y_valid)
 
         if self.use_label_encoder:
             self.enc_ = LabelEncoder()
@@ -163,6 +396,7 @@ class MyNeuralNet(NeuralNet):
             func(self, self.train_history_)
 
         num_epochs_past = len(self.train_history_)
+        learned_w = []
 
         while epoch < epochs:
             epoch += 1
@@ -177,10 +411,16 @@ class MyNeuralNet(NeuralNet):
 
             t0 = time()
 
+
             for Xb, yb in self.batch_iterator_train(X_train, y_train):
                 batch_train_loss = self.apply_batch_func(
                     self.train_iter_, Xb, yb)
                 train_losses.append(batch_train_loss)
+
+                # NOT tested
+                # get the current filter weights
+                curr_params = self.get_all_params_values()
+                #learned_w.append(curr_params['conv'][0].flatten())
 
                 for func in on_batch_finished:
                     func(self, self.train_history_)
@@ -215,6 +455,7 @@ class MyNeuralNet(NeuralNet):
                 'valid_loss_best': best_valid_loss == avg_valid_loss,
                 'valid_accuracy': avg_valid_accuracy,
                 'dur': time() - t0,
+                #'learned_w': learned_w,
                 }
             if self.custom_scores:
                 for index, custom_score in enumerate(self.custom_scores):
@@ -229,3 +470,4 @@ class MyNeuralNet(NeuralNet):
 
         for func in on_training_finished:
             func(self, self.train_history_) 
+'''

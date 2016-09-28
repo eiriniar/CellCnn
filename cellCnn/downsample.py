@@ -15,13 +15,17 @@ def random_subsample(X, target_nobs, replace=True):
         indices = np.random.choice(nobs, size=target_nobs, replace=replace)
         return X[indices,:]
 
-def weighted_subsample(X, w, target_nobs, replace=True):
+def weighted_subsample(X, w, target_nobs, replace=True, return_idx=False):
     nobs = X.shape[0]
     if (not replace) and (nobs <= target_nobs):
         return X
     else:
         indices = weighted_choice(w, target_nobs)
-        return X[indices]  
+        if return_idx:
+            return X[indices], indices
+        else:
+            return X[indices]
+
   
 def weighted_choice(weights, nsample):
     rnd = np.random.random_sample(nsample) * sum(weights)
@@ -112,8 +116,9 @@ def knn_dist_memory_optimized(test_data, train_data, s):
     bs = 500
     test_kNN_dist = np.zeros(nobs_test)
 
+    print 'going up to: %d' % (nobs_test/bs + 1)
     for ii in range(nobs_test/bs + 1):
-
+        print ii
         # is this a full batch or is it the last one?
         if (ii+1)*bs < nobs_test:
             end = (ii+1)*bs
@@ -127,9 +132,12 @@ def knn_dist_memory_optimized(test_data, train_data, s):
     return test_kNN_dist
 
                             
-def outlier_subsample(X, x_ctrl, to_keep):
+def outlier_subsample(X, x_ctrl, to_keep, return_idx=False):
     outlier_scores = knn_dist(X, x_ctrl, s=100, p=1)
     indices = np.argsort(outlier_scores)[-to_keep:]
-    return X[indices], outlier_scores[indices]
+    if return_idx:
+        return X[indices], outlier_scores[indices], indices
+    else:    
+        return X[indices], outlier_scores[indices]
     
     

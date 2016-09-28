@@ -57,6 +57,16 @@ def param_vector(params, regression=False):
                         W_out.reshape(-1,1)])
     return W_tot
 
+def keras_param_vector(params, regression=False):
+    W = np.squeeze(params[0])
+    b = params[1]
+    #W_out = np.diag(params[2]).reshape(-1,1)
+    W_out = params[2]
+
+    # store the (convolutional weights + biases + output weights) per filter
+    W_tot = np.hstack([W, b.reshape(-1,1), W_out])
+    return W_tot
+
 def representative(data, metric='cosine', stop=None):
     if stop is None:
         i = np.argmax(np.sum(pairwise_kernels(data, metric=metric), axis=1))
@@ -71,7 +81,8 @@ def cluster_tightness(data, metric='cosine'):
 
 
 def compute_consensus_profiles(param_dict, accuracies, accur_thres=.99,
-                                regression=False, prioritize=False):
+                                regression=False, prioritize=False,
+                                dendrogram_cutoff=.5):
     accum = []
     
     # if not at least 3 models reach the accuracy threshold, select the filters from the 3 best
@@ -81,16 +92,15 @@ def compute_consensus_profiles(param_dict, accuracies, accur_thres=.99,
     # combine filters from multiple models
     for i, params in param_dict.items():
         if accuracies[i] >= accur_thres:
-            W_tot = param_vector(params, regression)
+            W_tot = keras_param_vector(params, regression)
             accum.append(W_tot)      
     w_strong = np.vstack(accum)
-     
-    # if we are left with at least 2 filter profiles (now we are always)
+    
     # perform hierarchical clustering on cosine distances
     if w_strong.shape[0] > 1:
                     
         Z = linkage(w_strong[:,:-2], 'average', metric='cosine')
-        clusters = fcluster(Z, .3, criterion='distance') - 1    
+        clusters = fcluster(Z, dendrogram_cutoff, criterion='distance') - 1    
         c = Counter(clusters)
         
         # generate the consensus signatures     
@@ -236,6 +246,7 @@ def per_sample_biased_subsets(X, x_ctrl, nsubsets, ncell_final,
     nc_unbiased = ncell_final - nc_biased 
 
     for i in range(nsubsets):
+        print i
         x_unbiased = random_subsample(X, nc_unbiased)
         
         if (i % 100) == 0:
@@ -252,7 +263,8 @@ def generate_biased_subsets(X, pheno_map, sample_id, x_ctrl, nsubset_ctrl, nsubs
     S = dict()
     for ylabel in id_biased:
         X_i = filter_per_class(X, sample_id, ylabel)
-        S[ylabel] = per_sample_biased_subsets(X_i, x_ctrl, nsubset_biased,
+        n = nsubset_biased[pheno_map[ylabel]]
+        S[ylabel] = per_sample_biased_subsets(X_i, x_ctrl, n,
                                              ncell_final, to_keep, 0.5)
        
     for ylabel in id_ctrl:
@@ -269,6 +281,7 @@ def generate_biased_subsets(X, pheno_map, sample_id, x_ctrl, nsubset_ctrl, nsubs
     yt = np.hstack(y_list)  
     Xt, yt = sku.shuffle(Xt, yt) 
     return Xt, yt
+
 
 def logrank_pval(stime, censor, g1):
     res = logrank_test(stime[g1], stime[~g1], censor[g1], censor[~g1], alpha=.95)

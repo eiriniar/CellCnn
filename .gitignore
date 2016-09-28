@@ -16,6 +16,7 @@ overview_CellCnn.txt
 *.pdf
 
 looping_scripts/
+private_examples/
 
 # C extensions
 *.so
