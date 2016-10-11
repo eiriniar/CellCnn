@@ -148,7 +148,7 @@ def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9,9),
 				transform=ax.transAxes, size=20, weight='bold')
 		vmin = np.percentile(x[:,seq_index], 1)
 		vmax = np.percentile(x[:,seq_index], 99)
-		sns.kdeplot(z[:,0], z[:,1], colors='gray', cmap=None, linewidths=0.5)
+		#sns.kdeplot(z[:,0], z[:,1], colors='gray', cmap=None, linewidths=0.5)
 		im = ax.scatter(z[:,0], z[:,1], s=point_size, marker='o', c=x[:,seq_index], cmap=cm.jet,
 						alpha=0.5, edgecolors='face', vmin=vmin, vmax=vmax)                
 		ax.cax.colorbar(im)            
@@ -201,13 +201,12 @@ def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, grid_size, fig_pat
 	plt.close()
 
 
-def plot_single_tsne(z, feat, fig_path, s=2):
+def plot_single_tsne(z, feat, fig_path, s=2, plot_contours=False):
 
-	#cutoff = .8 * np.percentile(feat, 99)
-	print 'haaa'
 	sns.set_style('white')
 	fig, ax = plt.subplots(figsize=(5,5))
-	sns.kdeplot(z[:,0], z[:,1], colors='lightgray', cmap=None, linewidths=0.5)
+	if plot_contours:
+		sns.kdeplot(z[:,0], z[:,1], colors='lightgray', cmap=None, linewidths=0.5)
 	im = ax.scatter(z[:, 0], z[:, 1], s=s, marker='o', c=feat, vmin=np.percentile(feat, 1),
 					cmap=cm.jet,
 					alpha=0.5, edgecolors='face', vmax = np.percentile(feat, 99))

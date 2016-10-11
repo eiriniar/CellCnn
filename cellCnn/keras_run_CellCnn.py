@@ -11,7 +11,7 @@ from cellCnn.utils import compute_consensus_profiles, keras_param_vector
 from cellCnn.utils import generate_subsets, generate_biased_subsets
 from cellCnn.downsample import knn_dist, knn_dist_memory_optimized
 from cellCnn.theano_utils import select_top
-from cellCnn.theano_utils import float32, int32, activity_KL, select_thres
+from cellCnn.theano_utils import float32, int32, activity_KL
 
 import theano
 import theano.tensor as T

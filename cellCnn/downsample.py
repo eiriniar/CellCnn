@@ -6,7 +6,7 @@ from sklearn.utils import check_random_state
 from sklearn.metrics.pairwise import pairwise_distances
 
 
-# draw subsets of cells randomly
+# draw subsets of cells uniformly at random
 def random_subsample(X, target_nobs, replace=True):
     nobs = X.shape[0]
     if (not replace) and (nobs <= target_nobs):
