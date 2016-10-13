@@ -22,13 +22,15 @@ def clean_axis(ax):
 
 
 def plot_marker_distribution(datalist, namelist, labels, grid_size,
-							 fig_path=None, letter_size=16, figsize=(9,9), ks_list=None):
+							 fig_path=None, letter_size=16, figsize=(9,9), ks_list=None,
+							 colors=None):
 	nmark = len(labels)
 	assert len(datalist) == len(namelist)
 	g_i, g_j = grid_size
 	
 	sns.set_style('white')
-	colors = sns.color_palette("Set1", n_colors=len(datalist), desat=.5)
+	if colors is None:
+		colors = sns.color_palette("Set1", n_colors=len(datalist), desat=.5)
 	
 	fig = plt.figure(figsize=figsize)
 	grid = gridspec.GridSpec(g_i, g_j, wspace=0.1, hspace=.6)
@@ -56,7 +58,8 @@ def plot_marker_distribution(datalist, namelist, labels, grid_size,
 				ax.get_yaxis().set_ticks([])
 				ax.get_xaxis().set_ticks([-2, 0, 2, 4])
 
-	plt.legend(loc="upper right", prop={'size':letter_size})
+	#plt.legend(loc="upper right", prop={'size':letter_size})
+	plt.legend(bbox_to_anchor=(1.5, 0.9))
 	sns.despine()
 	if fig_path is not None:
 		plt.savefig(fig_path, format='eps')

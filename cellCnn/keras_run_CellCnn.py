@@ -232,6 +232,7 @@ def train_model(train_samples, train_phenotypes, labels,
 			config['nfilter'].append(nfilter)
 			config['learning_rate'].append(learning_rate)
 			config['ncell_pooled'].append(k)
+			print 'Cells pooled: %d' % k
 
 			data_input = Input(shape=(ncell, nmark))
 			noisy_input = GaussianNoise(sigma=sigma)(data_input)

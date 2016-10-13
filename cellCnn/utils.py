@@ -201,6 +201,54 @@ def generate_subsets(X, pheno_map, sample_id, nsubsets, ncell, k_init=False):
 	return Xt, yt
 
 
+def generate_subsets_siamese(X, pheno_map, sample_id, nsubsets, ncell, k_init=False):
+	S = dict()
+	n_out = len(np.unique(sample_id))
+	n_classes = len(np.unique(pheno_map))
+	assert n_classes == 2
+	
+	for ylabel in range(n_out):
+		X_i = filter_per_class(X, sample_id, ylabel)
+		S[ylabel] = per_sample_subsets(X_i, nsubsets, ncell, k_init)
+		
+	# mix them
+	data_list_pos = []
+	for y_i, x_i in S.items():
+		if pheno_map[y_i] == 1:
+			data_list_pos.append(x_i)
+
+	data_list_neg = []
+	for y_i, x_i in S.items():
+		if pheno_map[y_i] == 0:
+			data_list_neg.append(x_i)
+	 
+	X_pos = sku.shuffle(np.vstack(data_list_pos))
+	cut_pos = X_pos.shape[0] / 4
+	X_neg = sku.shuffle(np.vstack(data_list_neg))
+	cut_neg = X_neg.shape[0] / 4
+
+	x_a_pos = X_pos[:cut_pos]
+	x_b_pos = X_pos[cut_pos:2*cut_pos]
+	x_a_neg = X_neg[:cut_neg]
+	x_b_neg = X_neg[cut_neg:2*cut_neg]
+
+	X_a_same = np.vstack([x_a_pos, x_a_neg])
+	X_b_same = np.vstack([x_b_pos, x_b_neg])
+	X_a_same, X_b_same = sku.shuffle(X_a_same, X_b_same)
+	y_same = np.ones(X_a_same.shape[0], dtype=int)
+
+	X_a_diff = X_pos[2*cut_pos:]
+	X_b_diff = X_neg[2*cut_neg:]
+	y_diff = np.zeros(X_a_diff.shape[0], dtype=int)
+
+	Xt_a = np.vstack([X_a_same, X_a_diff])
+	Xt_b = np.vstack([X_b_same, X_b_diff])
+	yt = np.hstack([y_same, y_diff])
+
+	Xt_a, Xt_b, yt = sku.shuffle(Xt_a, Xt_b, yt) 
+	return Xt_a, Xt_b, yt	
+
+
 def per_sample_biased_subsets(X, x_ctrl, nsubsets, ncell_final,
 							to_keep, ratio_biased):
 	nmark = X.shape[1]
