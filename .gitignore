@@ -12,6 +12,7 @@ cellCnn/siamese_net.py
 *.pkl
 *.npy
 *.hdf5
+!cellCnn/examples/GM-CSF_vs_control.pkl
 
 # figures
 *.eps
