@@ -1,6 +1,5 @@
 import os, errno
 import numpy as np
-import pandas as pd
 from sklearn.metrics.pairwise import pairwise_kernels
 import sklearn.utils as sku
 from cellCnn.downsample import random_subsample, kmeans_subsample, outlier_subsample
@@ -32,14 +31,16 @@ def rectify(X):
 	return np.max(np.hstack([X.reshape(-1,1), np.zeros((X.shape[0],1))]),
 				  axis=1)
 
-def combine_samples(data_list, sample_id, flags):
-	accum_x, accum_y, accum_z = [], [], []
-	for x, y, z in zip(data_list, sample_id, flags):
+def relu(x):
+	return x * (x > 0)
+
+def combine_samples(data_list, sample_id):
+	accum_x, accum_y = [], []
+	for x, y in zip(data_list, sample_id):
 		accum_x.append(x)
-		accum_z.append(z)
 		accum_y.append(y * np.ones(x.shape[0], dtype=int))
 	
-	return np.vstack(accum_x), np.hstack(accum_y), np.vstack(accum_z)
+	return np.vstack(accum_x), np.hstack(accum_y)
 
 
 def keras_param_vector(params, regression=False):
@@ -58,15 +59,12 @@ def representative(data, metric='cosine', stop=None):
 		i = np.argmax(np.sum(pairwise_kernels(data[:,:stop], metric=metric), axis=1))
 	return data[i]
 
-
 def cluster_tightness(data, metric='cosine'):
 	centroid = np.mean(data, axis=0).reshape(1,-1)
 	return np.mean(pairwise_kernels(data, centroid, metric=metric))
 
-
-def compute_consensus_profiles(param_dict, accuracies, accur_thres=.99,
-								regression=False, prioritize=False,
-								dendrogram_cutoff=.5):
+def cluster_profiles(param_dict, accuracies, accur_thres=.99,
+					regression=False, dendrogram_cutoff=.5):
 	accum = []
 	
 	# if not at least 3 models reach the accuracy threshold, select the filters from the 3 best
@@ -81,39 +79,21 @@ def compute_consensus_profiles(param_dict, accuracies, accur_thres=.99,
 	w_strong = np.vstack(accum)
 	
 	# perform hierarchical clustering on cosine distances
-	if w_strong.shape[0] > 1:
-					
+	if w_strong.shape[0] > 1:		
 		Z = linkage(w_strong[:,:-2], 'average', metric='cosine')
 		clusters = fcluster(Z, dendrogram_cutoff, criterion='distance') - 1    
 		c = Counter(clusters)
-		
-		# generate the consensus signatures     
-		if not prioritize:
-			cons = []
-			for key, val in c.items():
-				if val > 1:
-					members = w_strong[clusters == key]
-					cons.append(representative(members, stop=-2))
-			cons_profile = np.vstack(cons)
-		
-		else:
-			cos_scores = []
-			for ckey, val in c.items():
-				coeff = np.sign(np.mean(w_strong[clusters == ckey, -1]))
-				cos_scores.append(coeff * np.sum(clusters == ckey))
-			ckey = c.keys()[np.argmax(cos_scores)] 
-			members = w_strong[clusters == ckey]
-			cons_profile = representative(members, stop=-2)
-		   
-	
-		cl_res = {'w': w_strong, 'cluster_linkage': Z, 'cluster_assignments': clusters}
-		
+		cons = []
+		for key, val in c.items():
+			if val > 1:
+				members = w_strong[clusters == key]
+				cons.append(representative(members, stop=-2))
+		cons_profile = np.vstack(cons)
+		cl_res = {'w': w_strong, 'cluster_linkage': Z, 'cluster_assignments': clusters}	
 	else:
 		cons_profile = np.squeeze(w_strong)
 		cl_res = None
-
 	return cons_profile, cl_res
-
 
 def normalize_outliers(X, lq=.5, hq=99.5, stop=None):
 	if stop is None:
@@ -181,13 +161,18 @@ def per_sample_subsets(X, nsubsets, ncell_per_subset, k_init=False):
 	return Xres    
 
 		
-def generate_subsets(X, pheno_map, sample_id, nsubsets, ncell, k_init=False):
+def generate_subsets(X, pheno_map, sample_id, nsubsets, ncell,
+ 					per_sample=False, k_init=False):
 	S = dict()
 	n_out = len(np.unique(sample_id))
 	
 	for ylabel in range(n_out):
 		X_i = filter_per_class(X, sample_id, ylabel)
-		S[ylabel] = per_sample_subsets(X_i, nsubsets, ncell, k_init)
+		if per_sample:
+			S[ylabel] = per_sample_subsets(X_i, nsubsets, ncell, k_init)
+		else:
+			n = nsubsets[pheno_map[ylabel]]
+			S[ylabel] = per_sample_subsets(X_i, n, ncell, k_init)
 		
 	# mix them
 	data_list, y_list = [], []
@@ -199,54 +184,6 @@ def generate_subsets(X, pheno_map, sample_id, nsubsets, ncell, k_init=False):
 	yt = np.hstack(y_list)  
 	Xt, yt = sku.shuffle(Xt, yt) 
 	return Xt, yt
-
-
-def generate_subsets_siamese(X, pheno_map, sample_id, nsubsets, ncell, k_init=False):
-	S = dict()
-	n_out = len(np.unique(sample_id))
-	n_classes = len(np.unique(pheno_map))
-	assert n_classes == 2
-	
-	for ylabel in range(n_out):
-		X_i = filter_per_class(X, sample_id, ylabel)
-		S[ylabel] = per_sample_subsets(X_i, nsubsets, ncell, k_init)
-		
-	# mix them
-	data_list_pos = []
-	for y_i, x_i in S.items():
-		if pheno_map[y_i] == 1:
-			data_list_pos.append(x_i)
-
-	data_list_neg = []
-	for y_i, x_i in S.items():
-		if pheno_map[y_i] == 0:
-			data_list_neg.append(x_i)
-	 
-	X_pos = sku.shuffle(np.vstack(data_list_pos))
-	cut_pos = X_pos.shape[0] / 4
-	X_neg = sku.shuffle(np.vstack(data_list_neg))
-	cut_neg = X_neg.shape[0] / 4
-
-	x_a_pos = X_pos[:cut_pos]
-	x_b_pos = X_pos[cut_pos:2*cut_pos]
-	x_a_neg = X_neg[:cut_neg]
-	x_b_neg = X_neg[cut_neg:2*cut_neg]
-
-	X_a_same = np.vstack([x_a_pos, x_a_neg])
-	X_b_same = np.vstack([x_b_pos, x_b_neg])
-	X_a_same, X_b_same = sku.shuffle(X_a_same, X_b_same)
-	y_same = np.ones(X_a_same.shape[0], dtype=int)
-
-	X_a_diff = X_pos[2*cut_pos:]
-	X_b_diff = X_neg[2*cut_neg:]
-	y_diff = np.zeros(X_a_diff.shape[0], dtype=int)
-
-	Xt_a = np.vstack([X_a_same, X_a_diff])
-	Xt_b = np.vstack([X_b_same, X_b_diff])
-	yt = np.hstack([y_same, y_diff])
-
-	Xt_a, Xt_b, yt = sku.shuffle(Xt_a, Xt_b, yt) 
-	return Xt_a, Xt_b, yt	
 
 
 def per_sample_biased_subsets(X, x_ctrl, nsubsets, ncell_final,
@@ -298,4 +235,65 @@ def logrank_pval(stime, censor, g1):
 	res = logrank_test(stime[g1], stime[~g1], censor[g1], censor[~g1], alpha=.95)
 	return res.p_value
 	
+
+# use the validation samples to select good filters
+# for each filter, choose top 30 cells from each class
+# to get an estimate of the activation differences between classes
+
+def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes):
+
+	nmark = valid_samples[0].shape[1]
+	n_classes = len(np.unique(valid_phenotypes))
+	selected_filters = np.zeros((n_classes-1, nmark))
+	ntop = 30
+	
+	valid_ctrl = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == 0])	
+	x0 = scaler.transform(valid_ctrl)
+	filter_idx = []
+
+	for i in range(1, n_classes):
+		x1 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == i])
+		x1 = scaler.transform(x1)
+		idx = -1
+		max_diff = -1
+
+		for ii, foo in enumerate(filters):
+
+			# if this filter is positive for the class of interest
+			# and negative for the control class
+			if (foo[nmark+1] < 0) and (foo[nmark+1+i] > 0):
+				w, b = foo[:nmark], foo[nmark]
+				g0 = relu(np.sum(w.reshape(1,-1) * x0, axis=1) + b)
+				g1 = relu(np.sum(w.reshape(1,-1) * x1, axis=1) + b)
+				d = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
+
+				if d > max_diff:
+					max_diff = d
+					idx = ii
+
+		# now we have the best filter for this specific class
+		filter_idx.append(idx)
+		selected_filters[i-1] = filters[idx, :nmark]
+
+	return selected_filters, filter_idx
+
+
+def get_filters_regression(filters, scaler, valid_samples, valid_phenotypes):
+
+	nmark = valid_samples[0].shape[1]
+	nsample = len(valid_samples)
+	tau = np.zeros((len(filters), 1))
+	
+	for ii, foo in enumerate(filters):
+		w, b, w_out = foo[:nmark], foo[nmark], foo[-1]
+
+		y_pred = np.zeros(nsample)
+		for jj, x in enumerate(valid_samples):
+			x = scaler.transform(x.copy())
+			y_pred[jj] = w_out * np.mean(relu(np.sum(w.reshape(1,-1) * x, axis=1) + b))
+
+		# compute Kendall's tau for filter ii
+		tau[ii, 0] = stats.kendalltau(y_pred, np.array(valid_phenotypes))[0]
+
+	return tau
 	
