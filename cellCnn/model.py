@@ -76,7 +76,7 @@ class CellCnn(object):
 	def __init__(self, scale=True, nrun=10, regression=False,
 				ncell=500, nsubset=4000, per_sample=False, subset_selection='random', 
 				ncell_pooled=[1,5,50,100],  nfilter_choice=[2,3,4,5],
-				learning_rate=None, coeff_l1=0, coeff_l2=1e-4, dropout='auto', dropout_p=.5,
+				learning_rate=None, coeff_l1=0, coeff_l2=0, dropout='auto', dropout_p=.5,
 				noisy_input=False, coeff_activity=0, max_epochs=50, patience=5,
 				dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
 
