@@ -239,7 +239,7 @@ def generate_biased_subsets(X, pheno_map, sample_id, x_ctrl, nsubset_ctrl, nsubs
 # use the validation samples to select good filters
 # for each filter, choose top 30 cells from each class
 # to get an estimate of the activation differences between classes
-
+'''
 def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes):
 
 	nmark = valid_samples[0].shape[1]
@@ -276,6 +276,41 @@ def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes)
 		selected_filters[i-1] = filters[idx, :nmark]
 
 	return selected_filters, filter_idx
+'''
+
+def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes, ntop):
+
+	nmark = valid_samples[0].shape[1]
+	n_classes = len(np.unique(valid_phenotypes))
+	d = np.zeros((len(filters), n_classes))
+
+	for i in range(n_classes):
+		x0 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y != i])	
+		x0 = scaler.transform(x0)
+
+		x1 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == i])
+		x1 = scaler.transform(x1)
+
+		for ii, foo in enumerate(filters):
+
+			if n_classes > 2:
+
+				# if this filter has highest weight connection to the class of interest
+				if np.argmax(foo[nmark+1:]) == i:
+					w, b = foo[:nmark], foo[nmark]
+					g0 = relu(np.sum(w.reshape(1,-1) * x0, axis=1) + b)
+					g1 = relu(np.sum(w.reshape(1,-1) * x1, axis=1) + b)
+					d[ii, i] = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
+			else:
+
+				# if this filter has highest weight connection to the class of interest
+				if ((foo[-1] > 0) and (i == 1)) or ((foo[-1] < 0) and (i == 0)):
+					w, b = foo[:nmark], foo[nmark]
+					g0 = relu(np.sum(w.reshape(1,-1) * x0, axis=1) + b)
+					g1 = relu(np.sum(w.reshape(1,-1) * x1, axis=1) + b)
+					d[ii, i] = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
+
+	return d
 
 
 def get_filters_regression(filters, scaler, valid_samples, valid_phenotypes):

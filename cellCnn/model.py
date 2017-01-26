@@ -495,16 +495,20 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 		'n_classes' : n_classes
 	}	
 
-	# if valid_samples is not None:
-	# 	if regression:
-	# 		tau = get_filters_regression(w_best_net, z_scaler, valid_samples, list(valid_phenotypes))
-	# 		results['filter_tau'] = tau
+	if valid_samples is not None:
+	 	if regression:
+	 		tau = get_filters_regression(w_cons, z_scaler, valid_samples, list(valid_phenotypes))
+	 		results['filter_tau'] = tau
 
-	# 	else:
-	# 		filter_w, filter_idx = get_filters_classification(w_best_net, z_scaler, valid_samples,
-	# 														  valid_phenotypes)
-	# 		results['selected_filters_supervised'] = filter_w
-	# 		results['selected_filters_supervised_indices'] = filter_idx
+	 	else:
+	 		n1 = np.median([xv.shape[0] for xv in valid_samples])
+	 		k = config['ncell_pooled'][best_accuracy_idx]
+			maxpool_percentage = 1. * k / ncell
+			ntop = int(maxpool_percentage * n1)
+	 		d = get_filters_classification(w_cons, z_scaler, valid_samples, valid_phenotypes, ntop)
+	 		results['dist'] = d
+	 		#results['selected_filters_supervised'] = filter_w
+	 		#results['selected_filters_supervised_indices'] = filter_idx
 	
 	return results
 
