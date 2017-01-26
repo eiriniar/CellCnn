@@ -12,9 +12,6 @@ from keras.regularizers import Regularizer
 def float32(k):
 	return np.cast['float32'](k)
 	
-def float64(k):
-	return np.cast['float64'](k)    
-	
 def int32(k):
 	return np.cast['int32'](k) 
 	

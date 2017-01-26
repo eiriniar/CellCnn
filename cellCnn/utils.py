@@ -9,7 +9,7 @@ from scipy.cluster.hierarchy import linkage
 from scipy.cluster.hierarchy import fcluster
 from scipy import stats
 from collections import Counter
-from lifelines.statistics import logrank_test
+#from lifelines.statistics import logrank_test
 
 
 def mkdir_p(path):
@@ -231,9 +231,9 @@ def generate_biased_subsets(X, pheno_map, sample_id, x_ctrl, nsubset_ctrl, nsubs
 	return Xt, yt
 
 
-def logrank_pval(stime, censor, g1):
-	res = logrank_test(stime[g1], stime[~g1], censor[g1], censor[~g1], alpha=.95)
-	return res.p_value
+# def logrank_pval(stime, censor, g1):
+# 	res = logrank_test(stime[g1], stime[~g1], censor[g1], censor[~g1], alpha=.95)
+# 	return res.p_value
 	
 
 # use the validation samples to select good filters

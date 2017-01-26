@@ -9,9 +9,9 @@ from cellCnn.utils import mkdir_p
 from sklearn.manifold import TSNE
 from  sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
-from lifelines.estimation import KaplanMeierFitter
 from mpl_toolkits.axes_grid1 import ImageGrid
 from scipy.stats import gaussian_kde
+#from lifelines.estimation import KaplanMeierFitter
 
 					
 def clean_axis(ax):
@@ -400,7 +400,7 @@ def visualize_results(res, outdir, prefix,
 			sys.stderr.write("Clustering was not performed.\n")
 			sys.exit(-1)
 
-
+'''
 def plot_KM(stime, censor, g1, pval, figname, format='eps'):
 	sns.set_style('white')
 	kmf = KaplanMeierFitter()        
@@ -424,7 +424,7 @@ def plot_KM(stime, censor, g1, pval, figname, format='eps'):
 	plt.tight_layout()
 	plt.savefig(figname, format=format)
 	plt.close()
-
+'''
 
 def organize_plates(x, y, int_ctype, le, params, yi=1, stim_name='GM-CSF',
 					which_filter='max'):
@@ -689,15 +689,18 @@ def scatterplot(x, y, z, xtick_labels, ytick_labels, xlabel, ylabel, plotdir,
 	plt.close()
 
 from sklearn.neighbors import NearestNeighbors
-def set_dbscan_eps(x, fig_path):
+def set_dbscan_eps(x, fig_path=None):
 	nbrs = NearestNeighbors(n_neighbors=2, metric='l1').fit(x)
 	distances, indices = nbrs.kneighbors(x)
 	
-	plt.figure()
-	plt.hist(distances[:,1], bins=20)
-	plt.savefig(fig_path)
-	plt.clf()
-	plt.close()
+	if fig_path is not None:
+		plt.figure()
+		plt.hist(distances[:,1], bins=20)
+		plt.savefig(fig_path)
+		plt.clf()
+		plt.close()
+
+	return np.percentile(distances, 90)
 
 
 def produce_tsne_plot(lookup, filter_weights, outdir, labels,

@@ -1,12 +1,12 @@
-
-numpy>=1.10
+numpy
+pandas
+scikit-learn==0.18.1
 scipy
-pandas>=0.15
-seaborn==0.7
-tabulate
-lifelines	# only for survival analysis
-scikit-learn>=0.16.1
-h5py==2.5.0
-PyYAML==3.11
+matplotlib
+seaborn
+six
+h5py
+PyYAML
 Theano
 Keras==1.0.4
+#lifelines	# only for survival analysis
