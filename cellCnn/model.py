@@ -77,7 +77,7 @@ class CellCnn(object):
 				ncell=500, nsubset=4000, per_sample=False, subset_selection='random', 
 				ncell_pooled=[1,5,50,100],  nfilter_choice=[2,3,4,5],
 				learning_rate=None, coeff_l1=0, coeff_l2=1e-4, dropout='auto', dropout_p=.5,
-				noisy_input=False, coeff_activity=0, max_epochs=50, patience=10,
+				noisy_input=False, coeff_activity=0, max_epochs=50, patience=5,
 				dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
 
 		# initialize model attributes
@@ -363,10 +363,10 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 		# generate 'nsubset' multi-cell inputs per input sample
 		if per_sample:
 			X_tr, y_tr = generate_subsets(X_train, train_phenotypes, id_train,
-											nsubset, ncell)
+											nsubset, ncell, per_sample)
 			if (valid_samples is not None) or generate_valid_set:
 				X_v, y_v = generate_subsets(X_valid, valid_phenotypes, id_valid,
-											nsubset, ncell)
+											nsubset, ncell, per_sample)
 
 		# generate 'nsubset' multi-cell inputs per class
 		else:
@@ -374,14 +374,14 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 			for pheno in range(len(np.unique(train_phenotypes))):
 				nsubset_list.append(nsubset / np.sum(train_phenotypes == pheno))
 			X_tr, y_tr = generate_subsets(X_train, train_phenotypes, id_train,
-										  nsubset_list, ncell)
+										  nsubset_list, ncell, per_sample)
 
 			if (valid_samples is not None) or generate_valid_set:
 				nsubset_list = []
 				for pheno in range(len(np.unique(valid_phenotypes))):
 					nsubset_list.append(nsubset / np.sum(valid_phenotypes == pheno))
 				X_v, y_v = generate_subsets(X_valid, valid_phenotypes, id_valid,
-											nsubset_list, ncell)
+											nsubset_list, ncell, per_sample)
 	print 'Done.'
 	
 	## neural network configuration ##
@@ -495,16 +495,16 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 		'n_classes' : n_classes
 	}	
 
-	if valid_samples is not None:
-		if regression:
-			tau = get_filters_regression(w_best_net, z_scaler, valid_samples, list(valid_phenotypes))
-			results['filter_tau'] = tau
+	# if valid_samples is not None:
+	# 	if regression:
+	# 		tau = get_filters_regression(w_best_net, z_scaler, valid_samples, list(valid_phenotypes))
+	# 		results['filter_tau'] = tau
 
-		else:
-			filter_w, filter_idx = get_filters_classification(w_best_net, z_scaler, valid_samples,
-															  valid_phenotypes)
-			results['selected_filters_supervised'] = filter_w
-			results['selected_filters_supervised_indices'] = filter_idx
+	# 	else:
+	# 		filter_w, filter_idx = get_filters_classification(w_best_net, z_scaler, valid_samples,
+	# 														  valid_phenotypes)
+	# 		results['selected_filters_supervised'] = filter_w
+	# 		results['selected_filters_supervised_indices'] = filter_idx
 	
 	return results
 

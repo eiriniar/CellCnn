@@ -12,6 +12,7 @@ cellCnn/siamese_net.py
 *.pkl
 *.npy
 *.hdf5
+*.fcs
 
 # figures
 *.eps
