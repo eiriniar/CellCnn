@@ -193,9 +193,10 @@ class CellCnn(object):
 		n_classes = self.results['n_classes']
 
 		# build the model architecture
-		model = build_model(ncell_per_sample, nmark, noisy_input=False, sigma=None,
+		# k should be ncell_per_sample or ncell_pooled?
+		model = build_model(ncell_per_sample, nmark, noisy_input=self.noisy_input, sigma=0,
 		 					nfilter=nfilter, coeff_l1=0, coeff_l2=0, coeff_activity=0,
- 							k=ncell_pooled, dropout=False, dropout_p=0, regression=self.regression,
+ 							k=ncell_per_sample, dropout=False, dropout_p=0, regression=self.regression,
  							n_classes=n_classes, lr=0.01)
 
 		# and load the learned filter and output weights
@@ -283,7 +284,7 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 		z_scaler.fit(X_train)
 		X_train = z_scaler.transform(X_train)
 	else:
-		scaler = None
+		z_scaler = None
 	
 	X_train, id_train = shuffle(X_train, id_train)
 	train_phenotypes = np.asarray(train_phenotypes)
@@ -439,15 +440,16 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 							dropout, dropout_p, regression, n_classes, lr)
 
 		filepath = os.path.join(outdir, 'nnet_run_%d.hdf5' % irun)
-
-		check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True, mode='auto')
-		earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
 		
 		if not regression:	
+			check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True, mode='auto')
+			earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
 			model.fit(float32(X_tr), int32(y_tr),
 					 nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
 					 validation_data=(float32(X_v), int32(y_v)))
 		else:
+			check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True, mode='auto')
+			earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
 			model.fit(float32(X_tr), float32(y_tr),
 					 nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
 					 validation_data=(float32(X_v), float32(y_v)))
@@ -495,7 +497,7 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 		'n_classes' : n_classes
 	}	
 
-	if valid_samples is not None:
+	if (valid_samples is not None) and (w_cons is not None):
 	 	if regression:
 	 		tau = get_filters_regression(w_cons, z_scaler, valid_samples, list(valid_phenotypes))
 	 		results['filter_tau'] = tau
@@ -520,14 +522,26 @@ def build_model(ncell, nmark, noisy_input, sigma, nfilter, coeff_l1, coeff_l2, c
 		
 	# the input layer
 	data_input = Input(shape=(ncell, nmark))
+
+	# for some reason the follwing causes an error
+	#data_input = GaussianNoise(sigma=sigma)(data_input)
+
 	if noisy_input:
-		data_input = GaussianNoise(sigma=sigma)(data_input)
+		input2 = GaussianNoise(sigma=sigma)(data_input)
 			
-	# the filters
-	conv1 = Convolution1D(nfilter, 1, activation='linear', 
-							W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-							activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
-							name='conv1')(data_input)
+		# the filters
+		conv1 = Convolution1D(nfilter, 1, activation='linear', 
+								W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
+								activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
+								name='conv1')(input2)
+	else:
+
+		# the filters
+		conv1 = Convolution1D(nfilter, 1, activation='linear', 
+								W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
+								activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
+								name='conv1')(data_input)
+
 	conv1 = Activation('relu')(conv1)
 
 	# the cell grouping part

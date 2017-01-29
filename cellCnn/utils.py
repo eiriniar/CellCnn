@@ -5,10 +5,13 @@ import sklearn.utils as sku
 from cellCnn.downsample import random_subsample, kmeans_subsample, outlier_subsample
 from cellCnn.downsample import weighted_subsample
 from  sklearn.preprocessing import StandardScaler
+from sklearn.metrics.pairwise import pairwise_kernels, pairwise_distances
 from scipy.cluster.hierarchy import linkage
 from scipy.cluster.hierarchy import fcluster
 from scipy import stats
+from scipy.sparse import coo_matrix
 from collections import Counter
+import igraph
 #from lifelines.statistics import logrank_test
 
 
@@ -88,7 +91,10 @@ def cluster_profiles(param_dict, accuracies, accur_thres=.99,
 			if val > 1:
 				members = w_strong[clusters == key]
 				cons.append(representative(members, stop=-2))
-		cons_profile = np.vstack(cons)
+		if cons != []:
+			cons_profile = np.vstack(cons)
+		else:
+			cons_profile = None
 		cl_res = {'w': w_strong, 'cluster_linkage': Z, 'cluster_assignments': clusters}	
 	else:
 		cons_profile = np.squeeze(w_strong)
@@ -285,11 +291,13 @@ def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes,
 	d = np.zeros((len(filters), n_classes))
 
 	for i in range(n_classes):
-		x0 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y != i])	
-		x0 = scaler.transform(x0)
+		x0 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y != i])
+		if scaler is not None:	
+			x0 = scaler.transform(x0.copy())
 
 		x1 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == i])
-		x1 = scaler.transform(x1)
+		if scaler is not None:
+			x1 = scaler.transform(x1.copy())
 
 		for ii, foo in enumerate(filters):
 
@@ -324,7 +332,8 @@ def get_filters_regression(filters, scaler, valid_samples, valid_phenotypes):
 
 		y_pred = np.zeros(nsample)
 		for jj, x in enumerate(valid_samples):
-			x = scaler.transform(x.copy())
+			if scaler is not None:
+				x = scaler.transform(x.copy())
 			y_pred[jj] = w_out * np.mean(relu(np.sum(w.reshape(1,-1) * x, axis=1) + b))
 
 		# compute Kendall's tau for filter ii
@@ -332,3 +341,56 @@ def get_filters_regression(filters, scaler, valid_samples, valid_phenotypes):
 
 	return tau
 	
+#from sklearn.neighbors import kneighbors_graph
+def create_graph(x1, k, g1, add_filter_response=False):
+
+	# compute pairwise distances between all points
+	# optionally, add cell filter activity as an extra feature
+	if add_filter_response:
+		x1 = np.hstack([x1, g1.reshape(-1,1)])
+
+	#A = kneighbors_graph(x1, k, mode='distance', include_self=False).todense()
+	#gauss_sigma = np.mean(A[A > 0])**2
+	#adj = np.exp(- A**2 / gauss_sigma)
+	
+	d = pairwise_distances(x1, metric='euclidean')
+	# create a k-NN graph
+	idx = np.argsort(d)[:, 1:k+1]
+	d.sort()
+	d = d[:, 1:k+1]
+
+	# create a weighted adjacency matrix from the distances (use gaussian kernel)
+	# code from https://github.com/mdeff/cnn_graph/blob/master/lib/graph.py
+	gauss_sigma = np.mean(d[:, -1])**2
+	w = np.exp(- d**2 / gauss_sigma)
+
+	# weight matrix
+	M = x1.shape[0]
+	I = np.arange(0, M).repeat(k)
+	J = idx.reshape(M*k)
+	V = w.reshape(M*k)
+	W = coo_matrix((V, (I, J)), shape=(M, M))
+	W.setdiag(0)
+	adj = W.todense()
+	
+	# now reweight graph edges according to cell filter activity similarity
+	#def min_kernel(v):
+	#	xv, yv = np.meshgrid(v, v)
+	#	return np.minimum(xv, yv)
+	#activity_kernel = pairwise_kernels(g1.reshape(-1,1), g1.reshape(-1,1), metric="rbf")
+	#activity_kernel = min_kernel(g1)
+	#adj = np.multiply(activity_kernel, adj)
+
+	# create a graph from the adjacency matrix
+	# first add the adges (binary matrix)
+	G = igraph.Graph.Adjacency((adj > 0).tolist())
+	# specify that the graph is undirected
+	G.to_undirected()
+	# now add weights to the edges
+	G.es['weight'] = adj[adj.nonzero()]
+	# print a summary of the graph
+	igraph.summary(G)
+		
+	return(G)
+
+

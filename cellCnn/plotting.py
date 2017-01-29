@@ -5,12 +5,13 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm 
 import matplotlib.gridspec as gridspec
 import seaborn as sns
-from cellCnn.utils import mkdir_p
+from cellCnn.utils import mkdir_p, create_graph
 from sklearn.manifold import TSNE
-from  sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from mpl_toolkits.axes_grid1 import ImageGrid
-from scipy.stats import gaussian_kde
+from scipy.stats import gaussian_kde, ks_2samp, ttest_ind
+import igraph
 #from lifelines.estimation import KaplanMeierFitter
 
 					
@@ -19,6 +20,124 @@ def clean_axis(ax):
 	ax.get_yaxis().set_ticks([])
 	for sp in ax.spines.values():
 		sp.set_visible(False)
+
+
+def plot_results_2class(results, samples, phenotypes, labels, outdir,
+						plot_filter_weights=True, percentage_drop=.2, thres=.3):
+	
+	# read and plot the selected filters
+	nmark = samples[0].shape[1]
+	filters = results['selected_filters'][:,range(nmark)+[-1]]
+	
+	if plot_filter_weights:
+		plt.figure(figsize=(10, 10))
+		ax = sns.heatmap(pd.DataFrame(filters, columns=labels+['output']),
+						 robust=True)
+		plt.xticks(rotation=90)
+		plt.yticks(rotation=0)
+		ax.tick_params(axis='both', which='major', labelsize=16)
+		plt.tight_layout()
+		fig_path = os.path.join(outdir, 'filter_weights.pdf')
+		plt.savefig(fig_path)
+		plt.close()
+
+	# now select the "good" filters
+	dist = results['dist']
+	dist = np.max(dist, axis=1)
+	sorted_idx = np.argsort(dist)[::-1]
+	dist = dist[sorted_idx]
+	keep_idx = [sorted_idx[0]]
+	for i in range(1, dist.shape[0]):
+		if ((dist[i-1] - dist[i]) < percentage_drop * dist[i-1]):
+			keep_idx.append(sorted_idx[i])
+		else:
+			break
+ 
+	# for each selected filter, plot the selected cell population
+	x = np.vstack(samples)
+	if results['scaler'] is not None:
+		x = results['scaler'].transform(x)
+
+	for i_filter in keep_idx: 
+		w = filters[i_filter, :nmark]
+		b = filters[i_filter, nmark]
+		g = np.sum(w.reshape(1,-1) * x, axis=1) + b
+		g = g * (g > 0)
+
+		t = thres * np.max(g)
+		x1 = x[g > t]
+		g1 = g[g > t]
+		k = 10
+
+		print 'Creating a k-NN graph with %d/%d cells...' % (x1.shape[0], x.shape[0])
+		G = create_graph(x1, k, g1)
+		print 'Identifying cell communities...'
+		cl = G.community_fastgreedy()
+		communities = np.array(cl.as_clustering().membership)
+		num_clusters = len(set(communities))
+		scores = np.zeros(num_clusters)
+		for j in range(num_clusters):
+			scores[j] = np.mean(g1[communities == j])
+
+		# keep the "good" communities
+		sorted_idx = np.argsort(scores)[::-1]
+		scores = scores[sorted_idx]
+		keep_idx_comm = [sorted_idx[0]]
+		for i in range(1, num_clusters):
+			if ((scores[i-1] - scores[i]) < percentage_drop * scores[i-1]):
+				keep_idx_comm.append(sorted_idx[i])
+			else:
+				break
+
+		for com in keep_idx_comm:
+			xc = x1[communities == com]
+
+			ks_list = []
+			for j in range(nmark):
+				ks = ks_2samp(xc[:,j], x[:,j])
+				ks_list.append('KS = %.2f' % ks[0])
+
+			fig_path = os.path.join(outdir, 'selected_population_distribution_filter_%d_cluster_%d.eps' % (i_filter, com))
+			plot_marker_distribution([xc, x], ['selected', 'all cells'],
+								 	labels, grid_size=(4,9), ks_list=ks_list, figsize=(24,10),
+									colors=['red', 'blue'], fig_path=fig_path)
+
+			# TODO: additionally, plot a boxplot of per class frequencies
+
+'''					
+def boxplot_frequencies(x_as, cid_as, x_bs, cid_bs, cid, fig_path,
+						group_a='group a', group_b='group_b'):
+	freq_a, freq_b = []
+	for x, ii in zip(x_as, cid_as):
+		freq_a.append(1. * np.sum(ii == cid) / x.shape[0])
+	for x, ii in zip(x_bs, cid_bs):
+		freq_b.append(1. * np.sum(ii == cid) / x.shape[0])
+
+		_t, pval = ttest_ind(freq_a, freq_b)
+		
+		# plot the boxplot and p-value
+		# make a boxplot with error bars
+		box_grade = [group_a] * len(freq_a) + [group_b] * len(freq_b)
+		box_data = np.hstack([freq_a, freq_b])
+		box = pd.DataFrame(np.array(zip(box_grade, box_data)), columns=['group', 'selected population frequency'])
+		box['selected population frequency'] = box['selected population frequency'].astype('float64')
+
+		fig, ax = plt.subplots(figsize=(2.5, 2.5))
+		ax = sns.boxplot(x="group", y="selected population frequency", data=box, width=.5, palette=sns.color_palette('Set2'))
+		ax = sns.swarmplot(x="group", y="selected population frequency", data=box, color=".25")
+
+		ax.text(.45, .95, 'pval = %.3f' % pval, horizontalalignment='center',
+				transform=ax.transAxes, size=12, weight='bold')
+		plt.ylim(0, .4)
+
+		sns.despine()
+		plt.tight_layout()
+		plt.savefig(fig_path)
+		plt.clf()
+		plt.close()
+'''
+
+
 
 
 def plot_marker_distribution(datalist, namelist, labels, grid_size,

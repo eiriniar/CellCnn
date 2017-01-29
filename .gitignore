@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+cellCnn/examples/NK_cell.py
+
 .DS_Store
 overview_CellCnn.txt
 cellCnn/bhtsne.py
