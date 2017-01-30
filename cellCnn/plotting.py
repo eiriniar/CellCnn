@@ -23,11 +23,27 @@ def clean_axis(ax):
 
 
 def plot_results_2class(results, samples, phenotypes, labels, outdir,
-						plot_filter_weights=True, percentage_drop=.2, thres=.3):
-	
+						plot_filter_weights=True, percentage_drop=.2, thres=.3,
+						group_a='group a', group_b='group b'):
+
+	# create the output directory
+	mkdir_p(outdir)
+
+	# first encode the sample and sample-phenotype for each cell
+	sample_sizes = []
+	per_cell_ids = []
+	for i, x in enumerate(samples):
+		sample_sizes.append(x.shape[0])
+		per_cell_ids.append(i * np.ones(x.shape[0]))
+
 	# read and plot the selected filters
 	nmark = samples[0].shape[1]
-	filters = results['selected_filters'][:,range(nmark)+[-1]]
+	if results['selected_filters'] is None:
+		print 'Loading the weights of the best network.'
+		filters = results['w_best_net'][:,range(nmark)+[-1]]
+	else:
+		print 'Loading the weights of consensus filters.'
+		filters = results['selected_filters'][:,range(nmark)+[-1]]
 	
 	if plot_filter_weights:
 		plt.figure(figsize=(10, 10))
@@ -55,6 +71,8 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
  
 	# for each selected filter, plot the selected cell population
 	x = np.vstack(samples)
+	z = np.hstack(per_cell_ids)
+
 	if results['scaler'] is not None:
 		x = results['scaler'].transform(x)
 
@@ -65,8 +83,10 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
 		g = g * (g > 0)
 
 		t = thres * np.max(g)
-		x1 = x[g > t]
-		g1 = g[g > t]
+		condition = g > t
+		x1 = x[condition]
+		z1 = z[condition]
+		g1 = g[condition]
 		k = 10
 
 		print 'Creating a k-NN graph with %d/%d cells...' % (x1.shape[0], x.shape[0])
@@ -91,58 +111,53 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
 
 		for com in keep_idx_comm:
 			xc = x1[communities == com]
+			zc = z1[communities == com]
 
 			ks_list = []
 			for j in range(nmark):
 				ks = ks_2samp(xc[:,j], x[:,j])
 				ks_list.append('KS = %.2f' % ks[0])
 
-			fig_path = os.path.join(outdir, 'selected_population_distribution_filter_%d_cluster_%d.eps' % (i_filter, com))
-			plot_marker_distribution([xc, x], ['selected', 'all cells'],
+			fig_path = os.path.join(outdir, 'selected_population_distribution_filter_%d_cluster_%d.pdf' % (i_filter, com))
+			plot_marker_distribution([x, xc], ['all cells', 'selected'],
 								 	labels, grid_size=(4,9), ks_list=ks_list, figsize=(24,10),
-									colors=['red', 'blue'], fig_path=fig_path)
+									colors=['blue', 'red'], fig_path=fig_path, hist=True)
 
-			# TODO: additionally, plot a boxplot of per class frequencies
+			# additionally, plot a boxplot of per class frequencies
+			freq_a, freq_b = [], []
+			for ii, (n, yy) in enumerate(zip(sample_sizes, phenotypes)):
+				freq = 1. * np.sum(zc == ii) / sample_sizes[ii]
+				if yy == 0:
+					freq_a.append(freq)
+				else:
+					freq_b.append(freq)
 
-'''					
-def boxplot_frequencies(x_as, cid_as, x_bs, cid_bs, cid, fig_path,
-						group_a='group a', group_b='group_b'):
-	freq_a, freq_b = []
-	for x, ii in zip(x_as, cid_as):
-		freq_a.append(1. * np.sum(ii == cid) / x.shape[0])
-	for x, ii in zip(x_bs, cid_bs):
-		freq_b.append(1. * np.sum(ii == cid) / x.shape[0])
-
-		_t, pval = ttest_ind(freq_a, freq_b)
+			# perform a t-test
+			_t, pval = ttest_ind(freq_a, freq_b)
 		
-		# plot the boxplot and p-value
-		# make a boxplot with error bars
-		box_grade = [group_a] * len(freq_a) + [group_b] * len(freq_b)
-		box_data = np.hstack([freq_a, freq_b])
-		box = pd.DataFrame(np.array(zip(box_grade, box_data)), columns=['group', 'selected population frequency'])
-		box['selected population frequency'] = box['selected population frequency'].astype('float64')
+			# make a boxplot with error bars
+			box_grade = [group_a] * len(freq_a) + [group_b] * len(freq_b)
+			box_data = np.hstack([freq_a, freq_b])
+			box = pd.DataFrame(np.array(zip(box_grade, box_data)), columns=['group', 'selected population frequency'])
+			box['selected population frequency'] = box['selected population frequency'].astype('float64')
 
-		fig, ax = plt.subplots(figsize=(2.5, 2.5))
-		ax = sns.boxplot(x="group", y="selected population frequency", data=box, width=.5, palette=sns.color_palette('Set2'))
-		ax = sns.swarmplot(x="group", y="selected population frequency", data=box, color=".25")
-
-		ax.text(.45, .95, 'pval = %.3f' % pval, horizontalalignment='center',
-				transform=ax.transAxes, size=12, weight='bold')
-		plt.ylim(0, .4)
-
-		sns.despine()
-		plt.tight_layout()
-		plt.savefig(fig_path)
-		plt.clf()
-		plt.close()
-'''
-
-
+			fig, ax = plt.subplots(figsize=(2.5, 2.5))
+			ax = sns.boxplot(x="group", y="selected population frequency", data=box, width=.5, palette=sns.color_palette('Set2'))
+			ax = sns.swarmplot(x="group", y="selected population frequency", data=box, color=".25")
+			ax.text(.45, .95, 'pval = %.3f' % pval, horizontalalignment='center',
+					transform=ax.transAxes, size=12, weight='bold')
+			plt.ylim(0, np.max(freq_a + freq_b) + 0.05)
+			sns.despine()
+			plt.tight_layout()
+			fig_path = os.path.join(outdir, 'selected_population_boxplot_filter_%d_cluster_%d.pdf' % (i_filter, com))
+			plt.savefig(fig_path)
+			plt.clf()
+			plt.close()
 
 
 def plot_marker_distribution(datalist, namelist, labels, grid_size,
 							 fig_path=None, letter_size=16, figsize=(9,9), ks_list=None,
-							 colors=None):
+							 colors=None, hist=False):
 	nmark = len(labels)
 	assert len(datalist) == len(namelist)
 	g_i, g_j = grid_size
@@ -168,20 +183,24 @@ def plot_marker_distribution(datalist, namelist, labels, grid_size,
 					lower = np.percentile(x[:,seq_index], 0.5)
 					upper = np.percentile(x[:,seq_index], 99.5)
 					if seq_index == nmark - 1:
-						sns.kdeplot(x[:,seq_index], color=colors[i_name], label=name,
-									clip=(lower, upper))
+						if hist:
+							plt.hist(x[:,seq_index], np.linspace(lower, upper, 10), color=colors[i_name], label=name, alpha=.5, normed=True)
+						else:
+							sns.kdeplot(x[:,seq_index], color=colors[i_name], label=name, clip=(lower, upper))
 					else:
-						sns.kdeplot(x[:,seq_index], color=colors[i_name],
-									clip=(lower, upper))
+						if hist:
+							plt.hist(x[:,seq_index], np.linspace(lower, upper, 10), color=colors[i_name], label=name, alpha=.5, normed=True)
+						else:
+							sns.kdeplot(x[:,seq_index], color=colors[i_name], clip=(lower, upper))
 				#if seq_index > 0:
 				ax.get_yaxis().set_ticks([])
-				ax.get_xaxis().set_ticks([-2, 0, 2, 4])
+				#ax.get_xaxis().set_ticks([-2, 0, 2, 4])
 
 	#plt.legend(loc="upper right", prop={'size':letter_size})
 	plt.legend(bbox_to_anchor=(1.5, 0.9))
 	sns.despine()
 	if fig_path is not None:
-		plt.savefig(fig_path, format='eps')
+		plt.savefig(fig_path)
 		plt.close()
 	else:
 		plt.show()
@@ -263,7 +282,6 @@ def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9,9),
 					 cbar_size="8%",
 					 cbar_pad="5%",
 					 )
-
 	for seq_index, ax in enumerate(grid):
 		ax.text(0, .92, labels[seq_index],
 				horizontalalignment='center',
@@ -352,20 +370,20 @@ def tsne_map(z, c, fig_path, colors=None, s=2, suffix='png'):
 
 	sns.set_style('white')
 	fig, ax = plt.subplots(figsize=(5,5))
-	sns.kdeplot(z[:,0], z[:,1], colors='lightgray', cmap=None, linewidths=0.5)
+	#sns.kdeplot(z[:,0], z[:,1], colors='lightgray', cmap=None, linewidths=0.5)
 	#ax = add_contour(z[c==0], ax)
 	for i in np.unique(c):
-		if i > 0:
-			plt.scatter(z[c==i, 0], z[c==i, 1], s=s, marker='o', c=colors[i],
-						edgecolors='face')
+		#if i > 0:
+		plt.scatter(z[c==i, 0], z[c==i, 1], s=s, marker='o', c=colors[i],
+						edgecolors='face', label=str(i))
 
 	clean_axis(ax)
 	ax.grid(False)
 
-	#plt.legend(loc="upper left", markerscale=20., scatterpoints=1, fontsize=10)
-	#plt.xlabel('tSNE axis 1', fontsize=20)
-	#plt.ylabel('tSNE axis 2', fontsize=20)
-	#sns.despine(left=True, bottom=True)
+	plt.legend(loc="upper left", markerscale=5., scatterpoints=1, fontsize=10)
+	plt.xlabel('tSNE axis 1', fontsize=20)
+	plt.ylabel('tSNE axis 2', fontsize=20)
+	sns.despine(left=True, bottom=True)
 	sns.despine()
 	plt.savefig(fig_path + '.%s' % suffix, format=suffix)
 	plt.clf()
