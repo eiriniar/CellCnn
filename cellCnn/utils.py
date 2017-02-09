@@ -11,9 +11,11 @@ from scipy.cluster.hierarchy import fcluster
 from scipy import stats
 from scipy.sparse import coo_matrix
 from collections import Counter
-import igraph
-#from lifelines.statistics import logrank_test
 
+try:
+	import igraph
+except ImportError:
+	pass
 
 def mkdir_p(path):
 	try:
@@ -22,6 +24,9 @@ def mkdir_p(path):
 		if exc.errno == errno.EEXIST and os.path.isdir(path):
 			pass
 		else: raise
+		
+def get_items(l, idx):
+	return [l[i] for i in idx]
 		
 def get_immediate_subdirectories(a_dir):
 	return [name for name in os.listdir(a_dir)
@@ -237,53 +242,6 @@ def generate_biased_subsets(X, pheno_map, sample_id, x_ctrl, nsubset_ctrl, nsubs
 	return Xt, yt
 
 
-# def logrank_pval(stime, censor, g1):
-# 	res = logrank_test(stime[g1], stime[~g1], censor[g1], censor[~g1], alpha=.95)
-# 	return res.p_value
-	
-
-# use the validation samples to select good filters
-# for each filter, choose top 30 cells from each class
-# to get an estimate of the activation differences between classes
-'''
-def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes):
-
-	nmark = valid_samples[0].shape[1]
-	n_classes = len(np.unique(valid_phenotypes))
-	selected_filters = np.zeros((n_classes-1, nmark))
-	ntop = 30
-	
-	valid_ctrl = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == 0])	
-	x0 = scaler.transform(valid_ctrl)
-	filter_idx = []
-
-	for i in range(1, n_classes):
-		x1 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == i])
-		x1 = scaler.transform(x1)
-		idx = -1
-		max_diff = -1
-
-		for ii, foo in enumerate(filters):
-
-			# if this filter is positive for the class of interest
-			# and negative for the control class
-			if (foo[nmark+1] < 0) and (foo[nmark+1+i] > 0):
-				w, b = foo[:nmark], foo[nmark]
-				g0 = relu(np.sum(w.reshape(1,-1) * x0, axis=1) + b)
-				g1 = relu(np.sum(w.reshape(1,-1) * x1, axis=1) + b)
-				d = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
-
-				if d > max_diff:
-					max_diff = d
-					idx = ii
-
-		# now we have the best filter for this specific class
-		filter_idx.append(idx)
-		selected_filters[i-1] = filters[idx, :nmark]
-
-	return selected_filters, filter_idx
-'''
-
 def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes, ntop):
 
 	nmark = valid_samples[0].shape[1]
@@ -301,23 +259,12 @@ def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes,
 
 		for ii, foo in enumerate(filters):
 
-			if n_classes > 2:
-
-				# if this filter has highest weight connection to the class of interest
-				if np.argmax(foo[nmark+1:]) == i:
-					w, b = foo[:nmark], foo[nmark]
-					g0 = relu(np.sum(w.reshape(1,-1) * x0, axis=1) + b)
-					g1 = relu(np.sum(w.reshape(1,-1) * x1, axis=1) + b)
-					d[ii, i] = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
-			else:
-
-				# if this filter has highest weight connection to the class of interest
-				if ((foo[-1] > 0) and (i == 1)) or ((foo[-1] < 0) and (i == 0)):
-					w, b = foo[:nmark], foo[nmark]
-					g0 = relu(np.sum(w.reshape(1,-1) * x0, axis=1) + b)
-					g1 = relu(np.sum(w.reshape(1,-1) * x1, axis=1) + b)
-					d[ii, i] = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
-
+			# if this filter has highest weight connection to the class of interest
+			if np.argmax(foo[nmark+1:]) == i:
+				w, b = foo[:nmark], foo[nmark]
+				g0 = relu(np.sum(w.reshape(1,-1) * x0, axis=1) + b)
+				g1 = relu(np.sum(w.reshape(1,-1) * x1, axis=1) + b)
+				d[ii, i] = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
 	return d
 
 
@@ -341,17 +288,13 @@ def get_filters_regression(filters, scaler, valid_samples, valid_phenotypes):
 
 	return tau
 	
-#from sklearn.neighbors import kneighbors_graph
-def create_graph(x1, k, g1, add_filter_response=False):
+
+def create_graph(x1, k, g1=None, add_filter_response=False):
 
 	# compute pairwise distances between all points
 	# optionally, add cell filter activity as an extra feature
 	if add_filter_response:
 		x1 = np.hstack([x1, g1.reshape(-1,1)])
-
-	#A = kneighbors_graph(x1, k, mode='distance', include_self=False).todense()
-	#gauss_sigma = np.mean(A[A > 0])**2
-	#adj = np.exp(- A**2 / gauss_sigma)
 	
 	d = pairwise_distances(x1, metric='euclidean')
 	# create a k-NN graph
@@ -373,7 +316,7 @@ def create_graph(x1, k, g1, add_filter_response=False):
 	W.setdiag(0)
 	adj = W.todense()
 	
-	# now reweight graph edges according to cell filter activity similarity
+	# now reweight graph edges according to cell filter response similarity
 	#def min_kernel(v):
 	#	xv, yv = np.meshgrid(v, v)
 	#	return np.minimum(xv, yv)

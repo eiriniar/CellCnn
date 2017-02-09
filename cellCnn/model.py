@@ -20,6 +20,7 @@ from keras.optimizers import Adam
 from keras.regularizers import l1l2, activity_l1
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.utils.np_utils import to_categorical
+from keras import initializations
 
 
 class CellCnn(object):
@@ -32,7 +33,7 @@ class CellCnn(object):
 	scale : whether to z-transform each feature (mean=0, std=1) prior to training
 	nrun  : number of neural network configurations to try (should be set >= 3)
 	regression : set to True for a regression problem. Default is False, which corresponds to
-	 			a classification setting.
+				a classification setting.
 
 	ncell : number of cells per multi-cell input
 	nsubset : total number of multi-cell inputs that will be generated per class, 
@@ -40,7 +41,7 @@ class CellCnn(object):
 			  total number of multi-cell inputs that will be generated from each input sample,
 			  if `per_sample` = True
 	per_sample : whether the nsubset argument refers to each class or each input sample
-	             for regression problems, it is automatically set to True
+				 for regression problems, it is automatically set to True
 	subset_selection : can be 'random' or 'outlier'. Generate multi-cell inputs uniformly at random
 					   or biased towards outliers. The latter option is only relevant for detection of
 					   extremely rare (frequency < 0.1%) cell populations.
@@ -50,9 +51,9 @@ class CellCnn(object):
 	nfilter_choice : a list specifying candidate numbers of filters for the neural network
 
 	learning_rate : learning rate for the Adam optimization algorithm. 
-				    If None learning rates in the range [0.001, 0.01] will be tried out.
+					If None learning rates in the range [0.001, 0.01] will be tried out.
 	dropout : whether to use dropout (at each epoch, set a neuron to zero with probability `dropout_p`)
-	          The default behavior 'auto' uses dropout when nfilter > 5.
+			  The default behavior 'auto' uses dropout when nfilter > 5.
 	dropout_p : dropout probability
 	coef_l1 : coefficiant for L1 weight regularization
 	coef_l2 : coefficiant for L2 weight regularization
@@ -64,11 +65,11 @@ class CellCnn(object):
 			  (stops if the validation loss does not decrease anymore)
 
 	dendrogram_cutoff : cutoff for hierarchical clustering of filter weights. Clustering is performed
-	 					using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff 
-	 					will generate more clusters. 
+						using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff 
+						will generate more clusters. 
 						  
 	accur_thres : keep filters from models achieving at least this accuracy. If less than 3 models
-	 			  pass the accuracy threshold, keep filters from the best 3 models.
+				  pass the accuracy threshold, keep filters from the best 3 models.
 
 
 	"""
@@ -195,9 +196,9 @@ class CellCnn(object):
 		# build the model architecture
 		# k should be ncell_per_sample or ncell_pooled?
 		model = build_model(ncell_per_sample, nmark, noisy_input=self.noisy_input, sigma=0,
-		 					nfilter=nfilter, coeff_l1=0, coeff_l2=0, coeff_activity=0,
- 							k=ncell_per_sample, dropout=False, dropout_p=0, regression=self.regression,
- 							n_classes=n_classes, lr=0.01)
+							nfilter=nfilter, coeff_l1=0, coeff_l2=0, coeff_activity=0,
+							k=ncell_per_sample, dropout=False, dropout_p=0, regression=self.regression,
+							n_classes=n_classes, lr=0.01)
 
 		# and load the learned filter and output weights
 		weights = self.results['best_net']
@@ -388,7 +389,7 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 	## neural network configuration ##
 	
 	# batch size
-	bs = 100
+	bs = 200
 
 	# keras needs (nbatch, ncell, nmark)
 	X_tr = np.swapaxes(X_tr, 2, 1)
@@ -397,12 +398,11 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 
 	if not regression:
 		n_classes = len(np.unique(train_phenotypes))
-		if n_classes > 2:
-			y_tr = to_categorical(y_tr)
-			y_v = to_categorical(y_v) 
+		y_tr = to_categorical(y_tr)
+		y_v = to_categorical(y_v) 
 
 	# train some neural networks with different parameter configurations 
-	accuracies = np.empty(nrun)
+	accuracies = np.zeros(nrun)
 	w_store = dict()
 	config = dict()
 	config['sigma'] = []
@@ -441,37 +441,42 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 
 		filepath = os.path.join(outdir, 'nnet_run_%d.hdf5' % irun)
 		
-		if not regression:	
-			check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True, mode='auto')
-			earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
-			model.fit(float32(X_tr), int32(y_tr),
-					 nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
-					 validation_data=(float32(X_v), int32(y_v)))
-		else:
-			check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True, mode='auto')
-			earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
-			model.fit(float32(X_tr), float32(y_tr),
-					 nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
-					 validation_data=(float32(X_v), float32(y_v)))
+		try:
+			if not regression:	
+				check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True, mode='auto')
+				earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
+				model.fit(float32(X_tr), int32(y_tr),
+						 nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
+						 validation_data=(float32(X_v), int32(y_v)))
+			else:
+				check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True, mode='auto')
+				earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
+				model.fit(float32(X_tr), float32(y_tr),
+						 nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
+						 validation_data=(float32(X_v), float32(y_v)))
 
+			# load the model from the epoch with highest validation accuracy
+			model.load_weights(filepath)
 
-		# load the model from the epoch with highest validation accuracy
-		model.load_weights(filepath)
+			if not regression:
+				valid_metric = model.evaluate(float32(X_v), int32(y_v))[-1]
+				print 'Best validation accuracy: %.2f' % valid_metric
+				accuracies[irun] = valid_metric
 
-		if not regression:
-			valid_metric = model.evaluate(float32(X_v), int32(y_v))[-1]
-			print 'Best validation accuracy: %.2f' % valid_metric
-			accuracies[irun] = valid_metric
+			else:
+				train_metric = model.evaluate(float32(X_tr), float32(y_tr), batch_size=bs)
+				print 'Best train loss: %.2f' % train_metric
+				valid_metric = model.evaluate(float32(X_v), float32(y_v), batch_size=bs)
+				print 'Best validation loss: %.2f' % valid_metric
+				accuracies[irun] = - valid_metric
 
-		else:
-			train_metric = model.evaluate(float32(X_tr), float32(y_tr), batch_size=bs)
-			print 'Best train loss: %.2f' % train_metric
-			valid_metric = model.evaluate(float32(X_v), float32(y_v), batch_size=bs)
-			print 'Best validation loss: %.2f' % valid_metric
-			accuracies[irun] = - valid_metric
+			# extract the network parameters
+			w_store[irun] = model.get_weights()
 
-		# extract the network parameters
-		w_store[irun] = model.get_weights()
+		except Exception as e:
+			sys.stderr.write('An exception was raised during training the network.\n')
+			sys.stderr.write(str(e) + '\n')
+			pass
 
 	# the best performing network and the accuracy it achieves
 	best_net = w_store[np.argmax(accuracies)]
@@ -498,25 +503,29 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 	}	
 
 	if (valid_samples is not None) and (w_cons is not None):
-	 	if regression:
-	 		tau = get_filters_regression(w_cons, z_scaler, valid_samples, list(valid_phenotypes))
-	 		results['filter_tau'] = tau
+		if regression:
+			tau = get_filters_regression(w_cons, z_scaler, valid_samples, list(valid_phenotypes))
+			results['filter_tau'] = tau
 
-	 	else:
-	 		n1 = np.median([xv.shape[0] for xv in valid_samples])
-	 		k = config['ncell_pooled'][best_accuracy_idx]
+		else:
+			n1 = np.median([xv.shape[0] for xv in valid_samples])
+			k = config['ncell_pooled'][best_accuracy_idx]
 			maxpool_percentage = 1. * k / ncell
 			ntop = int(maxpool_percentage * n1)
-	 		d = get_filters_classification(w_cons, z_scaler, valid_samples, valid_phenotypes, ntop)
-	 		results['dist'] = d
-	 		#results['selected_filters_supervised'] = filter_w
-	 		#results['selected_filters_supervised_indices'] = filter_idx
+			d = get_filters_classification(w_cons, z_scaler, valid_samples, valid_phenotypes, ntop)
+			results['dist'] = d
+			#results['selected_filters_supervised'] = filter_w
+			#results['selected_filters_supervised_indices'] = filter_idx
 	
 	return results
 
 
+def normal_init(shape, name=None):
+	return initializations.normal(shape, scale=0.01, name=name)
+
+
 def build_model(ncell, nmark, noisy_input, sigma, nfilter, coeff_l1, coeff_l2, coeff_activity,
- 				k, dropout, dropout_p, regression, n_classes, lr=0.01):
+				k, dropout, dropout_p, regression, n_classes, lr=0.01):
 
 	""" Builds the neural network architecture """
 		
@@ -530,14 +539,14 @@ def build_model(ncell, nmark, noisy_input, sigma, nfilter, coeff_l1, coeff_l2, c
 		input2 = GaussianNoise(sigma=sigma)(data_input)
 			
 		# the filters
-		conv1 = Convolution1D(nfilter, 1, activation='linear', 
+		conv1 = Convolution1D(nfilter, 1, activation='linear',
 								W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
 								activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
 								name='conv1')(input2)
 	else:
 
 		# the filters
-		conv1 = Convolution1D(nfilter, 1, activation='linear', 
+		conv1 = Convolution1D(nfilter, 1, activation='linear',
 								W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
 								activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
 								name='conv1')(data_input)
@@ -556,12 +565,8 @@ def build_model(ncell, nmark, noisy_input, sigma, nfilter, coeff_l1, coeff_l2, c
 
 	# network prediction output
 	if not regression:
-		if n_classes == 2:
-			output = Dense(1, activation='sigmoid', W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-							name='output')(pool1)
-		else:
-			output = Dense(n_classes, activation='softmax', W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-							name='output')(pool1)
+		output = Dense(n_classes, activation='softmax', W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
+						init=normal_init, name='output')(pool1)
 	else:
 		output = Dense(1, activation='tanh', W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
 						name='output')(pool1)
@@ -569,15 +574,10 @@ def build_model(ncell, nmark, noisy_input, sigma, nfilter, coeff_l1, coeff_l2, c
 	model = Model(input=data_input, output=output)
 
 	if not regression:
-		if n_classes == 2:
-			model.compile(optimizer=Adam(lr=lr),
-						  loss='binary_crossentropy',
-						  metrics=['accuracy'])
-		else:
-			model.compile(optimizer=Adam(lr=lr),
-						  loss='categorical_crossentropy',
-						  metrics=['accuracy'])
+		model.compile(optimizer=Adam(lr=lr),
+					loss='categorical_crossentropy',
+					metrics=['accuracy'])
 	else:
 		model.compile(optimizer=Adam(lr=lr),
-						loss='mean_squared_error')
+					loss='mean_squared_error')
 	return model
