@@ -9,5 +9,4 @@ h5py
 PyYAML
 Theano
 Keras==1.0.4
-python-igraph
-#lifelines	# only for survival analysis
+python-igraph # only for clustering via the louvain method
