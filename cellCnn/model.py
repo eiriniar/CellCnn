@@ -33,27 +33,27 @@ class CellCnn(object):
 	scale : whether to z-transform each feature (mean=0, std=1) prior to training
 	nrun  : number of neural network configurations to try (should be set >= 3)
 	regression : set to True for a regression problem. Default is False, which corresponds to
-				a classification setting.
+		a classification setting.
 
 	ncell : number of cells per multi-cell input
 	nsubset : total number of multi-cell inputs that will be generated per class, 
-			  if `per_sample` = False
-			  total number of multi-cell inputs that will be generated from each input sample,
-			  if `per_sample` = True
+		if `per_sample` = False
+		total number of multi-cell inputs that will be generated from each input sample,
+		if `per_sample` = True
 	per_sample : whether the nsubset argument refers to each class or each input sample
-				 for regression problems, it is automatically set to True
+		for regression problems, it is automatically set to True
 	subset_selection : can be 'random' or 'outlier'. Generate multi-cell inputs uniformly at random
-					   or biased towards outliers. The latter option is only relevant for detection of
-					   extremely rare (frequency < 0.1%) cell populations.
+		or biased towards outliers. The latter option is only relevant for detection of
+		extremely rare (frequency < 0.1%) cell populations.
 
 	ncell_pooled : A list specifying candidate numbers of cells that will be max-pooled per filter.
-				   For mean pooling, set `ncell_pooled` = [`ncell`].	
+		For mean pooling, set `ncell_pooled` = [`ncell`].	
 	nfilter_choice : a list specifying candidate numbers of filters for the neural network
 
 	learning_rate : learning rate for the Adam optimization algorithm. 
-					If None learning rates in the range [0.001, 0.01] will be tried out.
+		If None learning rates in the range [0.001, 0.01] will be tried out.
 	dropout : whether to use dropout (at each epoch, set a neuron to zero with probability `dropout_p`)
-			  The default behavior 'auto' uses dropout when nfilter > 5.
+		The default behavior 'auto' uses dropout when nfilter > 5.
 	dropout_p : dropout probability
 	coef_l1 : coefficiant for L1 weight regularization
 	coef_l2 : coefficiant for L2 weight regularization
@@ -62,16 +62,13 @@ class CellCnn(object):
 
 	max_epochs : maximum number of iterations through the data
 	patience : number of epochs before early stopping 
-			  (stops if the validation loss does not decrease anymore)
+		(stops if the validation loss does not decrease anymore)
 
 	dendrogram_cutoff : cutoff for hierarchical clustering of filter weights. Clustering is performed
-						using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff 
-						will generate more clusters. 
+		using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff will generate more clusters. 
 						  
 	accur_thres : keep filters from models achieving at least this accuracy. If less than 3 models
-				  pass the accuracy threshold, keep filters from the best 3 models.
-
-
+		pass the accuracy threshold, keep filters from the best 3 models.
 	"""
 
 	def __init__(self, scale=True, nrun=10, regression=False,
@@ -301,7 +298,6 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 		valid_phenotypes = np.asarray(valid_phenotypes)
 		y_valid = valid_phenotypes[id_valid]
 
-
 	# number of measured markers
 	nmark = X_train.shape[1]
    
@@ -309,7 +305,6 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 	print 'Generating multi-cell inputs...'
 
 	if subset_selection == 'outlier':
-		
 		# here we assume that class 0 is always the control class
 		x_ctrl_train = X_train[y_train == 0]
 		to_keep = int(0.1 * (X_train.shape[0] / len(train_phenotypes)))
@@ -324,7 +319,6 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 											nsubset_ctrl, nsubset_biased, ncell, to_keep,
 											id_ctrl=np.where(train_phenotypes == 0)[0],
 											id_biased=np.where(train_phenotypes != 0)[0])
-
 		# save those because it takes long to generate
 		#np.save(os.path.join(outdir, 'X_tr.npy'), X_tr)
 		#np.save(os.path.join(outdir, 'y_tr.npy'), y_tr)
@@ -332,10 +326,9 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 		#y_tr = np.load(os.path.join(outdir, 'y_tr.npy'))
 		
 		if (valid_samples is not None) or generate_valid_set:
-			
 			x_ctrl_valid = X_valid[y_valid == 0]
 			nsubset_ctrl = nsubset / np.sum(valid_phenotypes == 0)
-			
+
 			# generate a fixed number of subsets per class
 			nsubset_biased = [0]
 			for pheno in range(1, len(np.unique(valid_phenotypes))):
@@ -346,22 +339,18 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 												nsubset_ctrl, nsubset_biased, ncell, to_keep,
 												id_ctrl=np.where(valid_phenotypes == 0)[0],
 												id_biased=np.where(valid_phenotypes != 0)[0])
-
 			# save those because it takes long to generate
 			#np.save(os.path.join(outdir, 'X_v.npy'), X_v)
 			#np.save(os.path.join(outdir, 'y_v.npy'), y_v)
 			#X_v = np.load(os.path.join(outdir, 'X_v.npy'))
 			#y_v = np.load(os.path.join(outdir, 'y_v.npy'))
-
 		else:
 			cut = X_tr.shape[0] / 5
 			X_v = X_tr[:cut]
 			y_v = y_tr[:cut]
 			X_tr = X_tr[cut:]
 			y_tr = y_tr[cut:]
-											
 	else:
-
 		# generate 'nsubset' multi-cell inputs per input sample
 		if per_sample:
 			X_tr, y_tr = generate_subsets(X_train, train_phenotypes, id_train,
@@ -369,7 +358,6 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 			if (valid_samples is not None) or generate_valid_set:
 				X_v, y_v = generate_subsets(X_valid, valid_phenotypes, id_valid,
 											nsubset, ncell, per_sample)
-
 		# generate 'nsubset' multi-cell inputs per class
 		else:
 			nsubset_list = []
@@ -387,7 +375,6 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 	print 'Done.'
 	
 	## neural network configuration ##
-	
 	# batch size
 	bs = 200
 
@@ -413,10 +400,8 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 	sigma = 0
 
 	for irun in range(nrun):
-		
 		if verbose:
 			print 'training network: %d' % (irun + 1)
-
 		if noisy_input:
 			sigma = 10 ** np.random.uniform(-2, -1)
 			config['sigma'].append(sigma)
@@ -440,7 +425,6 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 							dropout, dropout_p, regression, n_classes, lr)
 
 		filepath = os.path.join(outdir, 'nnet_run_%d.hdf5' % irun)
-		
 		try:
 			if not regression:	
 				check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True, mode='auto')
@@ -487,9 +471,8 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 
 	# post-process the learned filters	
 	# cluster weights from all networks that achieved accuracy above the specified thershold 
-	w_cons, cluster_res = cluster_profiles(w_store, accuracies, accur_thres,
-											regression, dendrogram_cutoff=dendrogram_cutoff)
-
+	w_cons, cluster_res = cluster_profiles(w_store, accuracies, accur_thres, 
+							regression, dendrogram_cutoff=dendrogram_cutoff)
 	results = {
 		'clustering_result': cluster_res,
 		'selected_filters': w_cons,
@@ -513,9 +496,7 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 			maxpool_percentage = 1. * k / ncell
 			ntop = int(maxpool_percentage * n1)
 			d = get_filters_classification(w_cons, z_scaler, valid_samples, valid_phenotypes, ntop)
-			results['dist'] = d
-			#results['selected_filters_supervised'] = filter_w
-			#results['selected_filters_supervised_indices'] = filter_idx
+			results['dist'] = d	
 	
 	return results
 
