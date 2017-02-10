@@ -50,7 +50,6 @@ def combine_samples(data_list, sample_id):
 	
 	return np.vstack(accum_x), np.hstack(accum_y)
 
-
 def keras_param_vector(params, regression=False):
 	W = np.squeeze(params[0])
 	b = params[1]

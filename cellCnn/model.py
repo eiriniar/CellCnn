@@ -101,7 +101,6 @@ class CellCnn(object):
 		self.accur_thres = accur_thres
 		self.verbose = verbose
 
-
 	def fit(self, train_samples, train_phenotypes, labels, outdir,
 			valid_samples=None, valid_phenotypes=None, generate_valid_set=True):
 	
@@ -119,7 +118,6 @@ class CellCnn(object):
 		valid_phenotypes : list of phenotypes associated with the samples in `valid_samples`
 		generate_valid_set : if `valid_samples` is not provided, generate a validation set from the `train_samples`
 
-		
 		Returns
 		-------
 
@@ -130,14 +128,14 @@ class CellCnn(object):
 			`clustering_result`: clustered filter weights from all runs achieving 
 								validation accuracy above the specified threshold `accur_thres`
 			`selected_filters`: a consensus filter metrix from the above clustering result
-			`best_net`: the best model (achieving highest validation accuracy)
+			'best_3_nets' : the 3 best models (achieving highest validation accuracy)
+			`best_net`: the best model
 			`w_best_net`: filter and output weights of the best model
 			`accuracies`: list of validation accuracies achieved by different models
 			`best_model_index`: list index of the best model
 			`config`: list of neural network configurations used
 			`scaler`: a z-transform scaler object fitted to the training data
 			`n_classes` : number of output classes
-
 		"""
 
 		res = train_model(train_samples, train_phenotypes, labels, outdir,
@@ -155,7 +153,6 @@ class CellCnn(object):
 		
 		self.results = res
 		return self
-
 
 	def predict(self, new_samples, ncell_per_sample=None):
 
@@ -177,29 +174,7 @@ class CellCnn(object):
 
 		if ncell_per_sample is None:
 			ncell_per_sample = np.min([x.shape[0] for x in new_samples])
-
 		print 'Predictions based on multi-cell inputs containing %d cells.' % ncell_per_sample
-
-		# get the best model configuration
-		config = self.results['config']
-		k = config['ncell_pooled'][self.results['best_model_index']]
-		nfilter = config['nfilter'][self.results['best_model_index']]
-
-		maxpool_percentage = 1. * k / self.ncell
-		ncell_pooled = int(maxpool_percentage * ncell_per_sample)
-		nmark = new_samples[0].shape[1]
-		n_classes = self.results['n_classes']
-
-		# build the model architecture
-		# k should be ncell_per_sample or ncell_pooled?
-		model = build_model(ncell_per_sample, nmark, noisy_input=self.noisy_input, sigma=0,
-							nfilter=nfilter, coeff_l1=0, coeff_l2=0, coeff_activity=0,
-							k=ncell_per_sample, dropout=False, dropout_p=0, regression=self.regression,
-							n_classes=n_classes, lr=0.01)
-
-		# and load the learned filter and output weights
-		weights = self.results['best_net']
-		model.set_weights(weights)
 
 		# z-transform the new samples if we did that for the training samples
 		scaler = self.results['scaler']
@@ -207,20 +182,43 @@ class CellCnn(object):
 			new_samples = copy.deepcopy(new_samples)
 			new_samples = [scaler.transform(x) for x in new_samples]
 
-		# select a random subset of `ncell_per_sample` and make predictions
-		new_samples = [shuffle(x)[:ncell_per_sample].reshape(1, ncell_per_sample, nmark) for x in new_samples]
-		data_test = np.vstack(new_samples)
-		y_pred = model.predict(data_test)
+		nmark = new_samples[0].shape[1]
+		n_classes = self.results['n_classes']
 
-		return y_pred
+		# get the configuration of the top 3 models
+		accuracies = self.results['accuracies']
+		sorted_idx = np.argsort(accuracies)[::-1][:3]
+		config = self.results['config']
+	
+		y_pred = np.zeros((3, len(new_samples), n_classes))
+		for i_enum, i in enumerate(sorted_idx):
+			k = config['ncell_pooled'][i]
+			nfilter = config['nfilter'][i]
+			maxpool_percentage = 1. * k / self.ncell
+			ncell_pooled = max(1, int(maxpool_percentage * ncell_per_sample))
 
+			# build the model architecture
+			model = build_model(ncell_per_sample, nmark, noisy_input=self.noisy_input, sigma=0,
+								nfilter=nfilter, coeff_l1=0, coeff_l2=0, coeff_activity=0,
+								k=ncell_pooled, dropout=False, dropout_p=0, regression=self.regression,
+								n_classes=n_classes, lr=0.01)
 
+			# and load the learned filter and output weights
+			weights = self.results['best_3_nets'][i_enum]
+			model.set_weights(weights)
+
+			# select a random subset of `ncell_per_sample` and make predictions
+			new_samples = [shuffle(x)[:ncell_per_sample].reshape(1, ncell_per_sample, nmark) for x in new_samples]
+			data_test = np.vstack(new_samples)
+			y_pred[i_enum] = model.predict(data_test)
+
+		return np.mean(y_pred, axis=0)
 
 def train_model(train_samples, train_phenotypes, labels, outdir,
 				valid_samples=None, valid_phenotypes=None, generate_valid_set=True,
 				scale=True, nrun=10, regression=False,
 				ncell=500, nsubset=4000, per_sample=False, subset_selection='random', 
-				ncell_pooled=[1,3,5],  nfilter_choice=[2,3,4,5],
+				ncell_pooled=[1,3,5],  nfilter_choice=[3,4,5,10],
 				learning_rate=None, coeff_l1=0, coeff_l2=1e-4, dropout='auto', dropout_p=.5,
 				noisy_input=False, coeff_activity=0, max_epochs=50, patience=10,
 				dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
@@ -231,13 +229,6 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 	train_samples = copy.deepcopy(train_samples)
 	if valid_samples is not None:
 		valid_samples = copy.deepcopy(valid_samples)
-
-	# if landmark_norm is not None:
-	# 	idx_to_normalize = [labels.index(label) for label in landmark_norm]
-	# 	train_samples = landmark_normalization(train_samples, idx_to_normalize)
-	
-	# 	if valid_samples is not None:
-	# 		valid_samples = landmark_normalization(valid_samples, idx_to_normalize)
 			   
 	# normalize extreme values
 	# we assume that 0 corresponds to the control class
@@ -462,9 +453,11 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 			sys.stderr.write(str(e) + '\n')
 			pass
 
-	# the best performing network and the accuracy it achieves
-	best_net = w_store[np.argmax(accuracies)]
-	best_accuracy_idx = np.argmax(accuracies)
+	# the top 3 performing networks
+	model_sorted_idx = np.argsort(accuracies)[::-1][:3]
+	best_3_nets = [w_store[i] for i in model_sorted_idx]
+	best_net = best_3_nets[0]
+	best_accuracy_idx = model_sorted_idx[0]
 
 	# weights from the best-performing network
 	w_best_net = keras_param_vector(best_net, regression)
@@ -477,6 +470,7 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 		'clustering_result': cluster_res,
 		'selected_filters': w_cons,
 		'best_net': best_net,
+		'best_3_nets': best_3_nets,
 		'w_best_net': w_best_net,
 		'accuracies': accuracies,
 		'best_model_index': best_accuracy_idx,
@@ -503,7 +497,6 @@ def train_model(train_samples, train_phenotypes, labels, outdir,
 
 def normal_init(shape, name=None):
 	return initializations.normal(shape, scale=0.01, name=name)
-
 
 def build_model(ncell, nmark, noisy_input, sigma, nfilter, coeff_l1, coeff_l2, coeff_activity,
 				k, dropout, dropout_p, regression, n_classes, lr=0.01):

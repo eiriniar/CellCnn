@@ -27,11 +27,12 @@ def clean_axis(ax):
 		sp.set_visible(False)
 
 def plot_results_2class(results, samples, phenotypes, labels, outdir,
-						percentage_drop_filter=.2, filter_response_thres=.5,
+						percentage_drop_filter=.5, filter_response_thres=.5,
 						group_a='group a', group_b='group b',
 						clustering=None, add_filter_response=False,
 						percentage_drop_cluster=.1, stat_test='ttest',
-						min_cluster_freq=0.2, plot_tsne=True, tsne_ncell=3000):
+						min_cluster_freq=0.2, plot_tsne=True, tsne_ncell=3000,
+						log_yscale=False):
 
 	''' stat_test: 'ttest' | 'mannwhitneyu'
 		clustering: None | 'dbscan' | 'louvain'
@@ -130,7 +131,7 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
 		if clustering is None:
 			suffix = 'filter_%d' % i_filter
 			plot_selected_subset(x1, z1, x, labels, sample_sizes, phenotypes,
-				 				outdir, suffix, stat_test, group_a, group_b)
+				 				outdir, suffix, stat_test, group_a, group_b, log_yscale)
 		else:
 			if clustering == 'louvain':
 				print 'Creating a k-NN graph with %d/%d cells...' % (x1.shape[0], x.shape[0])
@@ -150,7 +151,7 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
 			cluster_ids = []
 			min_cells = int(min_cluster_freq * x1.shape[0])
 			for key, val in c.items():
-				if val > min_cells:
+				if (key != -1) and (val > min_cells):
 					cluster_ids.append(key)
 
 			num_clusters = len(cluster_ids)
@@ -175,8 +176,7 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
 				zc = z1[clusters == cl_id]
 				suffix = 'filter_%d_cluster_%d' % (i_filter, cl_id)
 				plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes,
-				 					outdir, suffix, stat_test, group_a, group_b)
-
+				 					outdir, suffix, stat_test, group_a, group_b, log_yscale)
 
 def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_size=(10, 3)):
 	if y_labels is None:
@@ -194,7 +194,7 @@ def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_
 	plt.close()
 
 def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, suffix,
-						stat_test, group_a, group_b):
+						stat_test, group_a, group_b, log_yscale=False):
 				
 	ks_list = []
 	nmark = x.shape[1]
@@ -231,8 +231,10 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
 	fig, ax = plt.subplots(figsize=(2.5, 2.5))
 	ax = sns.boxplot(x="group", y="selected population frequency", data=box, width=.5, palette=sns.color_palette('Set2'))
 	ax = sns.swarmplot(x="group", y="selected population frequency", data=box, color=".25")
-	ax.text(.45, .95, 'pval = %.3f' % pval, horizontalalignment='center',
-			transform=ax.transAxes, size=12, weight='bold')
+	ax.text(.45, 1., '%s pval = %.2e' % (stat_test, pval), horizontalalignment='center',
+			transform=ax.transAxes, size=8, weight='bold')
+	if log_yscale:
+		ax.set_yscale('log')
 	plt.ylim(0, np.max(freq_a + freq_b) + 0.01)
 	sns.despine()
 	plt.tight_layout()
@@ -240,7 +242,6 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
 	plt.savefig(fig_path)
 	plt.clf()
 	plt.close()
-
 
 def plot_marker_distribution(datalist, namelist, labels, grid_size,
 							 fig_path=None, letter_size=16, figsize=(9,9), ks_list=None,
@@ -355,7 +356,6 @@ def make_biaxial(train_feat, valid_feat, test_feat, train_y, valid_y, test_y, fi
 	plt.clf()
 	plt.close()
 
-
 def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9,9),
 				   suffix='png', point_size=.1):
    
@@ -398,7 +398,6 @@ def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9,9),
 	plt.clf()
 	plt.close()
 
-
 def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, grid_size, fig_path,
 							 labels=None, fig_size=(9,9), suffix='png', text_annot=None):
 	ncol = x_pos.shape[1]
@@ -439,7 +438,6 @@ def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, grid_size, fig_pat
 	plt.clf()
 	plt.close()
 
-
 def plot_2D_map(z, feat, fig_path, s=2, plot_contours=False):
 
 	sns.set_style('white')
@@ -469,7 +467,6 @@ def plot_2D_map(z, feat, fig_path, s=2, plot_contours=False):
 	plt.savefig(fig_path)
 	plt.clf()
 	plt.close()
-
 
 def plot_tsne_per_sample(z_list, data_list, data_labels, fig_dir, fig_size=(9,9),
 						density=True, scatter=True, colors=None, pref=''):
