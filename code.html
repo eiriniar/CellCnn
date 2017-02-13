@@ -54,88 +54,118 @@
 <dd><p>Creates a CellCnn model.</p>
 <dl class="docutils">
 <dt>Args:</dt>
-<dd><ul class="first last">
-<li><p class="first">ncell : Number of cells per multi-cell input.</p>
-</li>
+<dd><ul class="first last simple">
 <li><dl class="first docutils">
-<dt>nsubset <span class="classifier-delimiter">:</span> <span class="classifier">Total number of multi-cell inputs that will be generated per class, if</span></dt>
-<dd><p class="first last"><cite>per_sample</cite> = <cite>False</cite>. Total number of multi-cell inputs that will be generated from
-each input sample, if <cite>per_sample</cite> = <cite>True</cite>.</p>
-</dd>
+<dt>ncell :</dt>
+<dd>Number of cells per multi-cell input.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>per_sample <span class="classifier-delimiter">:</span> <span class="classifier">Whether the nsubset argument refers to each class or each input sample.</span></dt>
-<dd><p class="first last">For regression problems, it is automatically set to <cite>True</cite>.</p>
-</dd>
+<dt>nsubset :</dt>
+<dd>Total number of multi-cell inputs that will be generated per class, if
+<cite>per_sample</cite> = <cite>False</cite>. Total number of multi-cell inputs that will be generated from
+each input sample, if <cite>per_sample</cite> = <cite>True</cite>.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>subset_selection <span class="classifier-delimiter">:</span> <span class="classifier">Can be &#8216;random&#8217; or &#8216;outlier&#8217;. Generate multi-cell inputs uniformly at</span></dt>
-<dd><p class="first last">random or biased towards outliers. The latter option is only relevant for detection of
-extremely rare (frequency &lt; 0.1%) cell populations.</p>
-</dd>
+<dt>per_sample :</dt>
+<dd>Whether the nsubset argument refers to each class or each input sample.
+For regression problems, it is automatically set to <cite>True</cite>.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>ncell_pooled <span class="classifier-delimiter">:</span> <span class="classifier">A list specifying candidate numbers of cells that will be max-pooled per</span></dt>
-<dd><p class="first last">filter. For mean pooling, set <cite>ncell_pooled</cite> = <cite>[ncell]</cite>.</p>
-</dd>
-</dl>
-</li>
-<li><p class="first">nfilter_choice : A list specifying candidate numbers of filters for the neural network.</p>
-</li>
-<li><p class="first">scale : Whetherh to z-transform each feature (mean=0, std=1) prior to training.</p>
-</li>
-<li><p class="first">nrun : Number of neural network configurations to try (should be set &gt;= 3).</p>
-</li>
-<li><dl class="first docutils">
-<dt>regression <span class="classifier-delimiter">:</span> <span class="classifier">Set to <cite>True</cite> for a regression problem. Default is <cite>False</cite>, which corresponds</span></dt>
-<dd><p class="first last">to a classification setting.</p>
-</dd>
+<dt>subset_selection :</dt>
+<dd>Can be &#8216;random&#8217; or &#8216;outlier&#8217;. Generate multi-cell inputs uniformly at
+random or biased towards outliers. The latter option is only relevant for detection of
+extremely rare (frequency &lt; 0.1%) cell populations.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>learning_rate <span class="classifier-delimiter">:</span> <span class="classifier">Learning rate for the Adam optimization algorithm. If set to <cite>None</cite>,</span></dt>
-<dd><p class="first last">learning rates in the range [0.001, 0.01] will be tried out.</p>
-</dd>
+<dt>ncell_pooled :</dt>
+<dd>A list specifying candidate numbers of cells that will be max-pooled per
+filter. For mean pooling, set <cite>ncell_pooled</cite> = <cite>[ncell]</cite>.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>dropout <span class="classifier-delimiter">:</span> <span class="classifier">Whether to use dropout (at each epoch, set a neuron to zero with probability</span></dt>
-<dd><p class="first last"><cite>dropout_p</cite>). The default behavior &#8216;auto&#8217; uses dropout when <cite>nfilter</cite> &gt; 5.</p>
-</dd>
-</dl>
-</li>
-<li><p class="first">dropout_p : The dropout probability.</p>
-</li>
-<li><p class="first">coeff_l1 : Coefficiant for L1 weight regularization.</p>
-</li>
-<li><p class="first">coeff_l2 : Coefficiant for L2 weight regularization.</p>
-</li>
-<li><p class="first">coeff_activity : Coefficiant for regularizing the activity at each filter.</p>
-</li>
-<li><p class="first">noisy_input : If <cite>True</cite>, a Gaussian noise layer is added after the input layer.</p>
-</li>
-<li><p class="first">max_epochs : Maximum number of iterations through the data.</p>
-</li>
-<li><dl class="first docutils">
-<dt>patience <span class="classifier-delimiter">:</span> <span class="classifier">Number of epochs before early stopping (stops if the validation loss does not</span></dt>
-<dd><p class="first last">decrease anymore).</p>
-</dd>
+<dt>nfilter_choice :</dt>
+<dd>A list specifying candidate numbers of filters for the neural network.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>dendrogram_cutoff <span class="classifier-delimiter">:</span> <span class="classifier">Cutoff for hierarchical clustering of filter weights. Clustering is</span></dt>
-<dd><p class="first last">performed using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff will
-generate more clusters.</p>
-</dd>
+<dt>scale :</dt>
+<dd>Whetherh to z-transform each feature (mean=0, std=1) prior to training.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>accur_thres <span class="classifier-delimiter">:</span> <span class="classifier">Keep filters from models achieving at least this accuracy. If less than 3</span></dt>
-<dd><p class="first last">models pass the accuracy threshold, keep filters from the best 3 models.</p>
-</dd>
+<dt>nrun :</dt>
+<dd>Number of neural network configurations to try (should be set &gt;= 3).</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>regression :</dt>
+<dd>Set to <cite>True</cite> for a regression problem. Default is <cite>False</cite>, which corresponds
+to a classification setting.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>learning_rate :</dt>
+<dd>Learning rate for the Adam optimization algorithm. If set to <cite>None</cite>,
+learning rates in the range [0.001, 0.01] will be tried out.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>dropout :</dt>
+<dd>Whether to use dropout (at each epoch, set a neuron to zero with probability
+<cite>dropout_p</cite>). The default behavior &#8216;auto&#8217; uses dropout when <cite>nfilter</cite> &gt; 5.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>dropout_p :</dt>
+<dd>The dropout probability.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>coeff_l1 :</dt>
+<dd>Coefficient for L1 weight regularization.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>coeff_l2 :</dt>
+<dd>Coefficient for L2 weight regularization.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>coeff_activity :</dt>
+<dd>Coefficient for regularizing the activity at each filter.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>noisy_input :</dt>
+<dd>If <cite>True</cite>, a Gaussian noise layer is added after the input layer.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>max_epochs :</dt>
+<dd>Maximum number of iterations through the data.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>patience :</dt>
+<dd>Number of epochs before early stopping (stops if the validation loss does not
+decrease anymore).</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>dendrogram_cutoff :</dt>
+<dd>Cutoff for hierarchical clustering of filter weights. Clustering is
+performed using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff will
+generate more clusters.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>accur_thres :</dt>
+<dd>Keep filters from models achieving at least this accuracy. If less than 3
+models pass the accuracy threshold, keep filters from the best 3 models.</dd>
 </dl>
 </li>
 </ul>
@@ -147,25 +177,36 @@ generate more clusters.</p>
 <dd><p>Trains a CellCnn model.</p>
 <dl class="docutils">
 <dt>Args:</dt>
-<dd><ul class="first last">
-<li><p class="first">train_samples : List with input samples (e.g. cytometry samples) as numpy arrays.</p>
-</li>
-<li><p class="first">train_phenotypes : List of phenotypes associated with the samples in <cite>train_samples</cite>.</p>
-</li>
-<li><p class="first">outdir : Directory where output will be generated.</p>
-</li>
+<dd><ul class="first last simple">
 <li><dl class="first docutils">
-<dt>valid_samples <span class="classifier-delimiter">:</span> <span class="classifier">List with samples to be used as validation set while training the</span></dt>
-<dd><p class="first last">network.</p>
-</dd>
+<dt>train_samples :</dt>
+<dd>List with input samples (e.g. cytometry samples) as numpy arrays.</dd>
 </dl>
 </li>
-<li><p class="first">valid_phenotypes : List of phenotypes associated with the samples in <cite>valid_samples</cite>.</p>
+<li><dl class="first docutils">
+<dt>train_phenotypes :</dt>
+<dd>List of phenotypes associated with the samples in <cite>train_samples</cite>.</dd>
+</dl>
 </li>
 <li><dl class="first docutils">
-<dt>generate_valid_set <span class="classifier-delimiter">:</span> <span class="classifier">If <cite>valid_samples</cite> is not provided, generate a validation set</span></dt>
-<dd><p class="first last">from the <cite>train_samples</cite>.</p>
-</dd>
+<dt>outdir :</dt>
+<dd>Directory where output will be generated.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>valid_samples :</dt>
+<dd>List with samples to be used as validation set while training the network.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>valid_phenotypes :</dt>
+<dd>List of phenotypes associated with the samples in <cite>valid_samples</cite>.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>generate_valid_set :</dt>
+<dd>If <cite>valid_samples</cite> is not provided, generate a validation set
+from the <cite>train_samples</cite>.</dd>
 </dl>
 </li>
 </ul>
@@ -174,11 +215,7 @@ generate more clusters.</p>
 <dd><p class="first">A trained CellCnn model with the additional attribute <cite>results</cite>. The attribute <cite>results</cite>
 is a dictionary with the following entries:</p>
 <ul class="last simple">
-<li><dl class="first docutils">
-<dt>clustering_result <span class="classifier-delimiter">:</span> <span class="classifier">clustered filter weights from all runs achieving</span></dt>
-<dd>validation accuracy above the specified threshold <cite>accur_thres</cite></dd>
-</dl>
-</li>
+<li>clustering_result : clustered filter weights from all runs achieving                 validation accuracy above the specified threshold <cite>accur_thres</cite></li>
 <li>selected_filters : a consensus filter matrix from the above clustering result</li>
 <li>best_3_nets : the 3 best models (achieving highest validation accuracy)</li>
 <li>best_net : the best model</li>
@@ -201,13 +238,14 @@ is a dictionary with the following entries:</p>
 <dt>Args:</dt>
 <dd><ul class="first last simple">
 <li><dl class="first docutils">
-<dt>new_samples <span class="classifier-delimiter">:</span> <span class="classifier">List with input samples (numpy arrays) for which predictions will be</span></dt>
-<dd>made.</dd>
+<dt>new_samples :</dt>
+<dd>List with input samples (numpy arrays) for which predictions will be made.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>ncell_per_sample <span class="classifier-delimiter">:</span> <span class="classifier">Size of the multi-cell inputs (only one multi-cell input is created</span></dt>
-<dd>per input sample). If set to None, the size of the multi-cell inputs equals the
+<dt>ncell_per_sample :</dt>
+<dd>Size of the multi-cell inputs (only one multi-cell input is created
+per input sample). If set to None, the size of the multi-cell inputs equals the
 minimum size in <cite>new_samples</cite>.</dd>
 </dl>
 </li>

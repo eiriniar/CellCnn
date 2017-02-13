@@ -75,38 +75,58 @@
     <span class="sd">&quot;&quot;&quot; Creates a CellCnn model.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        - ncell : Number of cells per multi-cell input.</span>
-<span class="sd">        - nsubset : Total number of multi-cell inputs that will be generated per class, if</span>
+<span class="sd">        - ncell :</span>
+<span class="sd">            Number of cells per multi-cell input.</span>
+<span class="sd">        - nsubset :</span>
+<span class="sd">            Total number of multi-cell inputs that will be generated per class, if</span>
 <span class="sd">            `per_sample` = `False`. Total number of multi-cell inputs that will be generated from</span>
 <span class="sd">            each input sample, if `per_sample` = `True`.</span>
-<span class="sd">        - per_sample : Whether the nsubset argument refers to each class or each input sample.</span>
+<span class="sd">        - per_sample :</span>
+<span class="sd">            Whether the nsubset argument refers to each class or each input sample.</span>
 <span class="sd">            For regression problems, it is automatically set to `True`.</span>
-<span class="sd">        - subset_selection : Can be &#39;random&#39; or &#39;outlier&#39;. Generate multi-cell inputs uniformly at</span>
+<span class="sd">        - subset_selection :</span>
+<span class="sd">            Can be &#39;random&#39; or &#39;outlier&#39;. Generate multi-cell inputs uniformly at</span>
 <span class="sd">            random or biased towards outliers. The latter option is only relevant for detection of</span>
 <span class="sd">            extremely rare (frequency &lt; 0.1%) cell populations.</span>
-<span class="sd">        - ncell_pooled : A list specifying candidate numbers of cells that will be max-pooled per</span>
+<span class="sd">        - ncell_pooled :</span>
+<span class="sd">            A list specifying candidate numbers of cells that will be max-pooled per</span>
 <span class="sd">            filter. For mean pooling, set `ncell_pooled` = `[ncell]`.</span>
-<span class="sd">        - nfilter_choice : A list specifying candidate numbers of filters for the neural network.</span>
-<span class="sd">        - scale : Whetherh to z-transform each feature (mean=0, std=1) prior to training.</span>
-<span class="sd">        - nrun : Number of neural network configurations to try (should be set &gt;= 3).</span>
-<span class="sd">        - regression : Set to `True` for a regression problem. Default is `False`, which corresponds</span>
+<span class="sd">        - nfilter_choice :</span>
+<span class="sd">            A list specifying candidate numbers of filters for the neural network.</span>
+<span class="sd">        - scale :</span>
+<span class="sd">            Whetherh to z-transform each feature (mean=0, std=1) prior to training.</span>
+<span class="sd">        - nrun :</span>
+<span class="sd">            Number of neural network configurations to try (should be set &gt;= 3).</span>
+<span class="sd">        - regression :</span>
+<span class="sd">            Set to `True` for a regression problem. Default is `False`, which corresponds</span>
 <span class="sd">            to a classification setting.</span>
-<span class="sd">        - learning_rate : Learning rate for the Adam optimization algorithm. If set to `None`,</span>
+<span class="sd">        - learning_rate :</span>
+<span class="sd">            Learning rate for the Adam optimization algorithm. If set to `None`,</span>
 <span class="sd">            learning rates in the range [0.001, 0.01] will be tried out.</span>
-<span class="sd">        - dropout : Whether to use dropout (at each epoch, set a neuron to zero with probability</span>
+<span class="sd">        - dropout :</span>
+<span class="sd">            Whether to use dropout (at each epoch, set a neuron to zero with probability</span>
 <span class="sd">            `dropout_p`). The default behavior &#39;auto&#39; uses dropout when `nfilter` &gt; 5.</span>
-<span class="sd">        - dropout_p : The dropout probability.</span>
-<span class="sd">        - coeff_l1 : Coefficiant for L1 weight regularization.</span>
-<span class="sd">        - coeff_l2 : Coefficiant for L2 weight regularization.</span>
-<span class="sd">        - coeff_activity : Coefficiant for regularizing the activity at each filter.</span>
-<span class="sd">        - noisy_input : If `True`, a Gaussian noise layer is added after the input layer.</span>
-<span class="sd">        - max_epochs : Maximum number of iterations through the data.</span>
-<span class="sd">        - patience : Number of epochs before early stopping (stops if the validation loss does not</span>
+<span class="sd">        - dropout_p :</span>
+<span class="sd">            The dropout probability.</span>
+<span class="sd">        - coeff_l1 :</span>
+<span class="sd">            Coefficient for L1 weight regularization.</span>
+<span class="sd">        - coeff_l2 :</span>
+<span class="sd">            Coefficient for L2 weight regularization.</span>
+<span class="sd">        - coeff_activity :</span>
+<span class="sd">            Coefficient for regularizing the activity at each filter.</span>
+<span class="sd">        - noisy_input :</span>
+<span class="sd">            If `True`, a Gaussian noise layer is added after the input layer.</span>
+<span class="sd">        - max_epochs :</span>
+<span class="sd">            Maximum number of iterations through the data.</span>
+<span class="sd">        - patience :</span>
+<span class="sd">            Number of epochs before early stopping (stops if the validation loss does not</span>
 <span class="sd">            decrease anymore).</span>
-<span class="sd">        - dendrogram_cutoff : Cutoff for hierarchical clustering of filter weights. Clustering is</span>
+<span class="sd">        - dendrogram_cutoff :</span>
+<span class="sd">            Cutoff for hierarchical clustering of filter weights. Clustering is</span>
 <span class="sd">            performed using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff will</span>
 <span class="sd">            generate more clusters.</span>
-<span class="sd">        - accur_thres : Keep filters from models achieving at least this accuracy. If less than 3</span>
+<span class="sd">        - accur_thres :</span>
+<span class="sd">            Keep filters from models achieving at least this accuracy. If less than 3</span>
 <span class="sd">            models pass the accuracy threshold, keep filters from the best 3 models.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -147,20 +167,25 @@
         <span class="sd">&quot;&quot;&quot; Trains a CellCnn model.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            - train_samples : List with input samples (e.g. cytometry samples) as numpy arrays.</span>
-<span class="sd">            - train_phenotypes : List of phenotypes associated with the samples in `train_samples`.</span>
-<span class="sd">            - outdir : Directory where output will be generated.</span>
-<span class="sd">            - valid_samples : List with samples to be used as validation set while training the</span>
-<span class="sd">                network.</span>
-<span class="sd">            - valid_phenotypes : List of phenotypes associated with the samples in `valid_samples`.</span>
-<span class="sd">            - generate_valid_set : If `valid_samples` is not provided, generate a validation set</span>
+<span class="sd">            - train_samples :</span>
+<span class="sd">                List with input samples (e.g. cytometry samples) as numpy arrays.</span>
+<span class="sd">            - train_phenotypes :</span>
+<span class="sd">                List of phenotypes associated with the samples in `train_samples`.</span>
+<span class="sd">            - outdir :</span>
+<span class="sd">                Directory where output will be generated.</span>
+<span class="sd">            - valid_samples :</span>
+<span class="sd">                List with samples to be used as validation set while training the network.</span>
+<span class="sd">            - valid_phenotypes :</span>
+<span class="sd">                List of phenotypes associated with the samples in `valid_samples`.</span>
+<span class="sd">            - generate_valid_set :</span>
+<span class="sd">                If `valid_samples` is not provided, generate a validation set</span>
 <span class="sd">                from the `train_samples`.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            A trained CellCnn model with the additional attribute `results`. The attribute `results`</span>
 <span class="sd">            is a dictionary with the following entries:</span>
 
-<span class="sd">            - clustering_result : clustered filter weights from all runs achieving</span>
+<span class="sd">            - clustering_result : clustered filter weights from all runs achieving \</span>
 <span class="sd">                validation accuracy above the specified threshold `accur_thres`</span>
 <span class="sd">            - selected_filters : a consensus filter matrix from the above clustering result</span>
 <span class="sd">            - best_3_nets : the 3 best models (achieving highest validation accuracy)</span>
@@ -193,9 +218,10 @@
         <span class="sd">&quot;&quot;&quot; Makes predictions for new samples.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            - new_samples : List with input samples (numpy arrays) for which predictions will be</span>
-<span class="sd">                made.</span>
-<span class="sd">            - ncell_per_sample : Size of the multi-cell inputs (only one multi-cell input is created</span>
+<span class="sd">            - new_samples :</span>
+<span class="sd">                List with input samples (numpy arrays) for which predictions will be made.</span>
+<span class="sd">            - ncell_per_sample :</span>
+<span class="sd">                Size of the multi-cell inputs (only one multi-cell input is created</span>
 <span class="sd">                per input sample). If set to None, the size of the multi-cell inputs equals the</span>
 <span class="sd">                minimum size in `new_samples`.</span>
 
