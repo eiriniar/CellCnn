@@ -1,0 +1,315 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Documentation &#8212; CellCnn 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="CellCnn" href="includeme.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="documentation">
+<h1>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-cellCnn.model">
+<span id="model"></span><h2>model<a class="headerlink" href="#module-cellCnn.model" title="Permalink to this headline">¶</a></h2>
+<p>This module contains functions for performing a CellCnn analysis.</p>
+<dl class="class">
+<dt id="cellCnn.model.CellCnn">
+<em class="property">class </em><code class="descclassname">cellCnn.model.</code><code class="descname">CellCnn</code><span class="sig-paren">(</span><em>ncell=500, nsubset=4000, per_sample=False, subset_selection='random', ncell_pooled=[1, 5, 50, 100], nfilter_choice=[2, 3, 4, 5], scale=True, nrun=10, regression=False, learning_rate=None, coeff_l1=0, coeff_l2=0, dropout='auto', dropout_p=0.5, noisy_input=False, coeff_activity=0, max_epochs=50, patience=5, dendrogram_cutoff=0.4, accur_thres=0.95, verbose=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/model.html#CellCnn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.model.CellCnn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a CellCnn model.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><ul class="first last">
+<li><p class="first">ncell : Number of cells per multi-cell input.</p>
+</li>
+<li><dl class="first docutils">
+<dt>nsubset <span class="classifier-delimiter">:</span> <span class="classifier">Total number of multi-cell inputs that will be generated per class, if</span></dt>
+<dd><p class="first last"><cite>per_sample</cite> = <cite>False</cite>. Total number of multi-cell inputs that will be generated from
+each input sample, if <cite>per_sample</cite> = <cite>True</cite>.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>per_sample <span class="classifier-delimiter">:</span> <span class="classifier">Whether the nsubset argument refers to each class or each input sample.</span></dt>
+<dd><p class="first last">For regression problems, it is automatically set to <cite>True</cite>.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>subset_selection <span class="classifier-delimiter">:</span> <span class="classifier">Can be &#8216;random&#8217; or &#8216;outlier&#8217;. Generate multi-cell inputs uniformly at</span></dt>
+<dd><p class="first last">random or biased towards outliers. The latter option is only relevant for detection of
+extremely rare (frequency &lt; 0.1%) cell populations.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>ncell_pooled <span class="classifier-delimiter">:</span> <span class="classifier">A list specifying candidate numbers of cells that will be max-pooled per</span></dt>
+<dd><p class="first last">filter. For mean pooling, set <cite>ncell_pooled</cite> = <cite>[ncell]</cite>.</p>
+</dd>
+</dl>
+</li>
+<li><p class="first">nfilter_choice : A list specifying candidate numbers of filters for the neural network.</p>
+</li>
+<li><p class="first">scale : Whetherh to z-transform each feature (mean=0, std=1) prior to training.</p>
+</li>
+<li><p class="first">nrun : Number of neural network configurations to try (should be set &gt;= 3).</p>
+</li>
+<li><dl class="first docutils">
+<dt>regression <span class="classifier-delimiter">:</span> <span class="classifier">Set to <cite>True</cite> for a regression problem. Default is <cite>False</cite>, which corresponds</span></dt>
+<dd><p class="first last">to a classification setting.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>learning_rate <span class="classifier-delimiter">:</span> <span class="classifier">Learning rate for the Adam optimization algorithm. If set to <cite>None</cite>,</span></dt>
+<dd><p class="first last">learning rates in the range [0.001, 0.01] will be tried out.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>dropout <span class="classifier-delimiter">:</span> <span class="classifier">Whether to use dropout (at each epoch, set a neuron to zero with probability</span></dt>
+<dd><p class="first last"><cite>dropout_p</cite>). The default behavior &#8216;auto&#8217; uses dropout when <cite>nfilter</cite> &gt; 5.</p>
+</dd>
+</dl>
+</li>
+<li><p class="first">dropout_p : The dropout probability.</p>
+</li>
+<li><p class="first">coeff_l1 : Coefficiant for L1 weight regularization.</p>
+</li>
+<li><p class="first">coeff_l2 : Coefficiant for L2 weight regularization.</p>
+</li>
+<li><p class="first">coeff_activity : Coefficiant for regularizing the activity at each filter.</p>
+</li>
+<li><p class="first">noisy_input : If <cite>True</cite>, a Gaussian noise layer is added after the input layer.</p>
+</li>
+<li><p class="first">max_epochs : Maximum number of iterations through the data.</p>
+</li>
+<li><dl class="first docutils">
+<dt>patience <span class="classifier-delimiter">:</span> <span class="classifier">Number of epochs before early stopping (stops if the validation loss does not</span></dt>
+<dd><p class="first last">decrease anymore).</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>dendrogram_cutoff <span class="classifier-delimiter">:</span> <span class="classifier">Cutoff for hierarchical clustering of filter weights. Clustering is</span></dt>
+<dd><p class="first last">performed using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff will
+generate more clusters.</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>accur_thres <span class="classifier-delimiter">:</span> <span class="classifier">Keep filters from models achieving at least this accuracy. If less than 3</span></dt>
+<dd><p class="first last">models pass the accuracy threshold, keep filters from the best 3 models.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+<dl class="method">
+<dt id="cellCnn.model.CellCnn.fit">
+<code class="descname">fit</code><span class="sig-paren">(</span><em>train_samples</em>, <em>train_phenotypes</em>, <em>outdir</em>, <em>valid_samples=None</em>, <em>valid_phenotypes=None</em>, <em>generate_valid_set=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/model.html#CellCnn.fit"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.model.CellCnn.fit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Trains a CellCnn model.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><ul class="first last">
+<li><p class="first">train_samples : List with input samples (e.g. cytometry samples) as numpy arrays.</p>
+</li>
+<li><p class="first">train_phenotypes : List of phenotypes associated with the samples in <cite>train_samples</cite>.</p>
+</li>
+<li><p class="first">outdir : Directory where output will be generated.</p>
+</li>
+<li><dl class="first docutils">
+<dt>valid_samples <span class="classifier-delimiter">:</span> <span class="classifier">List with samples to be used as validation set while training the</span></dt>
+<dd><p class="first last">network.</p>
+</dd>
+</dl>
+</li>
+<li><p class="first">valid_phenotypes : List of phenotypes associated with the samples in <cite>valid_samples</cite>.</p>
+</li>
+<li><dl class="first docutils">
+<dt>generate_valid_set <span class="classifier-delimiter">:</span> <span class="classifier">If <cite>valid_samples</cite> is not provided, generate a validation set</span></dt>
+<dd><p class="first last">from the <cite>train_samples</cite>.</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+<dt>Returns:</dt>
+<dd><p class="first">A trained CellCnn model with the additional attribute <cite>results</cite>. The attribute <cite>results</cite>
+is a dictionary with the following entries:</p>
+<ul class="last simple">
+<li><dl class="first docutils">
+<dt>clustering_result <span class="classifier-delimiter">:</span> <span class="classifier">clustered filter weights from all runs achieving</span></dt>
+<dd>validation accuracy above the specified threshold <cite>accur_thres</cite></dd>
+</dl>
+</li>
+<li>selected_filters : a consensus filter matrix from the above clustering result</li>
+<li>best_3_nets : the 3 best models (achieving highest validation accuracy)</li>
+<li>best_net : the best model</li>
+<li>w_best_net : filter and output weights of the best model</li>
+<li>accuracies : list of validation accuracies achieved by different models</li>
+<li>best_model_index : list index of the best model</li>
+<li>config : list of neural network configurations used</li>
+<li>scaler : a z-transform scaler object fitted to the training data</li>
+<li>n_classes : number of output classes</li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="cellCnn.model.CellCnn.predict">
+<code class="descname">predict</code><span class="sig-paren">(</span><em>new_samples</em>, <em>ncell_per_sample=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/model.html#CellCnn.predict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.model.CellCnn.predict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes predictions for new samples.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><ul class="first last simple">
+<li><dl class="first docutils">
+<dt>new_samples <span class="classifier-delimiter">:</span> <span class="classifier">List with input samples (numpy arrays) for which predictions will be</span></dt>
+<dd>made.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>ncell_per_sample <span class="classifier-delimiter">:</span> <span class="classifier">Size of the multi-cell inputs (only one multi-cell input is created</span></dt>
+<dd>per input sample). If set to None, the size of the multi-cell inputs equals the
+minimum size in <cite>new_samples</cite>.</dd>
+</dl>
+</li>
+</ul>
+</dd>
+<dt>Returns:</dt>
+<dd>y_pred : Phenotype predictions for <cite>new_samples</cite>.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-cellCnn.plotting">
+<span id="plotting"></span><h2>plotting<a class="headerlink" href="#module-cellCnn.plotting" title="Permalink to this headline">¶</a></h2>
+<p>This module contains functions for plotting the results of a CellCnn analysis.</p>
+<dl class="function">
+<dt id="cellCnn.plotting.plot_results_2class">
+<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results_2class</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>percentage_drop_filter=0.5</em>, <em>filter_response_thres=0.5</em>, <em>group_a='group a'</em>, <em>group_b='group b'</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>stat_test='ttest'</em>, <em>min_cluster_freq=0.2</em>, <em>plot_tsne=True</em>, <em>tsne_ncell=3000</em>, <em>log_yscale=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results_2class"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results_2class" title="Permalink to this definition">¶</a></dt>
+<dd><p>Plots the results of a CellCnn analysis for a 2-class classification problem.</p>
+<dl class="docutils">
+<dt>Args:</dt>
+<dd><ul class="first last simple">
+<li>results: Dictionary containing the results of a CellCnn analysis.</li>
+<li>samples: Samples from which to visualize the selected cell populations.</li>
+<li>phenotypes: List of phenotypes corresponding to the provided <cite>samples</cite>.</li>
+<li>labels: Names of measured markers.</li>
+<li>outdir: Output directory where the generated plots will be stored.</li>
+<li><dl class="first docutils">
+<dt>filter_response_thres: Threshold for choosing a responding cell population.</dt>
+<dd>Should be in [0,1].</dd>
+</dl>
+</li>
+<li>stat_test: &#8216;ttest&#8217; | &#8216;mannwhitneyu&#8217;</li>
+<li>clustering: None | &#8216;dbscan&#8217; | &#8216;louvain&#8217;</li>
+</ul>
+</dd>
+<dt>Returns:</dt>
+<dd>A collection of plots for model interpretation. These plots are stored in <cite>outdir</cite>.</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Documentation</a><ul>
+<li><a class="reference internal" href="#module-cellCnn.model">model</a></li>
+<li><a class="reference internal" href="#module-cellCnn.plotting">plotting</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="includeme.html" title="previous chapter">CellCnn</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/code.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Eirini Arvaniti.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+      |
+      <a href="_sources/code.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

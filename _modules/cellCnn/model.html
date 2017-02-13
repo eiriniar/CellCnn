@@ -1,0 +1,627 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>cellCnn.model &#8212; CellCnn 0.1 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for cellCnn.model</h1><div class="highlight"><pre>
+<span></span>
+<span class="sd">&quot;&quot;&quot; This module contains functions for performing a CellCnn analysis. &quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">copy</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="k">import</span> <span class="n">StratifiedKFold</span>
+<span class="kn">from</span> <span class="nn">sklearn.preprocessing</span> <span class="k">import</span> <span class="n">StandardScaler</span>
+<span class="kn">from</span> <span class="nn">sklearn.utils</span> <span class="k">import</span> <span class="n">shuffle</span>
+
+<span class="kn">from</span> <span class="nn">cellCnn.utils</span> <span class="k">import</span> <span class="n">combine_samples</span><span class="p">,</span> <span class="n">normalize_outliers_to_control</span>
+<span class="kn">from</span> <span class="nn">cellCnn.utils</span> <span class="k">import</span> <span class="n">cluster_profiles</span><span class="p">,</span> <span class="n">keras_param_vector</span>
+<span class="kn">from</span> <span class="nn">cellCnn.utils</span> <span class="k">import</span> <span class="n">generate_subsets</span><span class="p">,</span> <span class="n">generate_biased_subsets</span>
+<span class="kn">from</span> <span class="nn">cellCnn.utils</span> <span class="k">import</span> <span class="n">get_filters_classification</span><span class="p">,</span> <span class="n">get_filters_regression</span>
+<span class="kn">from</span> <span class="nn">cellCnn.theano_utils</span> <span class="k">import</span> <span class="n">select_top</span><span class="p">,</span> <span class="n">float32</span><span class="p">,</span> <span class="n">int32</span><span class="p">,</span> <span class="n">activity_KL</span>
+
+<span class="kn">from</span> <span class="nn">keras.layers</span> <span class="k">import</span> <span class="n">Input</span><span class="p">,</span> <span class="n">Dense</span><span class="p">,</span> <span class="n">Lambda</span><span class="p">,</span> <span class="n">Activation</span><span class="p">,</span> <span class="n">Dropout</span>
+<span class="kn">from</span> <span class="nn">keras.layers.convolutional</span> <span class="k">import</span> <span class="n">Convolution1D</span>
+<span class="kn">from</span> <span class="nn">keras.layers.noise</span> <span class="k">import</span> <span class="n">GaussianNoise</span>
+<span class="kn">from</span> <span class="nn">keras.models</span> <span class="k">import</span> <span class="n">Model</span>
+<span class="kn">from</span> <span class="nn">keras.optimizers</span> <span class="k">import</span> <span class="n">Adam</span>
+<span class="kn">from</span> <span class="nn">keras.regularizers</span> <span class="k">import</span> <span class="n">l1l2</span>
+<span class="kn">from</span> <span class="nn">keras.callbacks</span> <span class="k">import</span> <span class="n">EarlyStopping</span><span class="p">,</span> <span class="n">ModelCheckpoint</span>
+<span class="kn">from</span> <span class="nn">keras.utils.np_utils</span> <span class="k">import</span> <span class="n">to_categorical</span>
+
+
+<div class="viewcode-block" id="CellCnn"><a class="viewcode-back" href="../../code.html#cellCnn.model.CellCnn">[docs]</a><span class="k">class</span> <span class="nc">CellCnn</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot; Creates a CellCnn model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        - ncell : Number of cells per multi-cell input.</span>
+<span class="sd">        - nsubset : Total number of multi-cell inputs that will be generated per class, if</span>
+<span class="sd">            `per_sample` = `False`. Total number of multi-cell inputs that will be generated from</span>
+<span class="sd">            each input sample, if `per_sample` = `True`.</span>
+<span class="sd">        - per_sample : Whether the nsubset argument refers to each class or each input sample.</span>
+<span class="sd">            For regression problems, it is automatically set to `True`.</span>
+<span class="sd">        - subset_selection : Can be &#39;random&#39; or &#39;outlier&#39;. Generate multi-cell inputs uniformly at</span>
+<span class="sd">            random or biased towards outliers. The latter option is only relevant for detection of</span>
+<span class="sd">            extremely rare (frequency &lt; 0.1%) cell populations.</span>
+<span class="sd">        - ncell_pooled : A list specifying candidate numbers of cells that will be max-pooled per</span>
+<span class="sd">            filter. For mean pooling, set `ncell_pooled` = `[ncell]`.</span>
+<span class="sd">        - nfilter_choice : A list specifying candidate numbers of filters for the neural network.</span>
+<span class="sd">        - scale : Whetherh to z-transform each feature (mean=0, std=1) prior to training.</span>
+<span class="sd">        - nrun : Number of neural network configurations to try (should be set &gt;= 3).</span>
+<span class="sd">        - regression : Set to `True` for a regression problem. Default is `False`, which corresponds</span>
+<span class="sd">            to a classification setting.</span>
+<span class="sd">        - learning_rate : Learning rate for the Adam optimization algorithm. If set to `None`,</span>
+<span class="sd">            learning rates in the range [0.001, 0.01] will be tried out.</span>
+<span class="sd">        - dropout : Whether to use dropout (at each epoch, set a neuron to zero with probability</span>
+<span class="sd">            `dropout_p`). The default behavior &#39;auto&#39; uses dropout when `nfilter` &gt; 5.</span>
+<span class="sd">        - dropout_p : The dropout probability.</span>
+<span class="sd">        - coeff_l1 : Coefficiant for L1 weight regularization.</span>
+<span class="sd">        - coeff_l2 : Coefficiant for L2 weight regularization.</span>
+<span class="sd">        - coeff_activity : Coefficiant for regularizing the activity at each filter.</span>
+<span class="sd">        - noisy_input : If `True`, a Gaussian noise layer is added after the input layer.</span>
+<span class="sd">        - max_epochs : Maximum number of iterations through the data.</span>
+<span class="sd">        - patience : Number of epochs before early stopping (stops if the validation loss does not</span>
+<span class="sd">            decrease anymore).</span>
+<span class="sd">        - dendrogram_cutoff : Cutoff for hierarchical clustering of filter weights. Clustering is</span>
+<span class="sd">            performed using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff will</span>
+<span class="sd">            generate more clusters.</span>
+<span class="sd">        - accur_thres : Keep filters from models achieving at least this accuracy. If less than 3</span>
+<span class="sd">            models pass the accuracy threshold, keep filters from the best 3 models.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ncell</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">nsubset</span><span class="o">=</span><span class="mi">4000</span><span class="p">,</span> <span class="n">per_sample</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">subset_selection</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
+                 <span class="n">ncell_pooled</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">100</span><span class="p">],</span> <span class="n">nfilter_choice</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
+                 <span class="n">scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nrun</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">regression</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">learning_rate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coeff_l1</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">dropout_p</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span>
+                 <span class="n">noisy_input</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+                 <span class="n">dendrogram_cutoff</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">accur_thres</span><span class="o">=.</span><span class="mi">95</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+
+        <span class="c1"># initialize model attributes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nrun</span> <span class="o">=</span> <span class="n">nrun</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">regression</span> <span class="o">=</span> <span class="n">regression</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ncell</span> <span class="o">=</span> <span class="n">ncell</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nsubset</span> <span class="o">=</span> <span class="n">nsubset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">per_sample</span> <span class="o">=</span> <span class="n">per_sample</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subset_selection</span> <span class="o">=</span> <span class="n">subset_selection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ncell_pooled</span> <span class="o">=</span> <span class="n">ncell_pooled</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nfilter_choice</span> <span class="o">=</span> <span class="n">nfilter_choice</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="n">learning_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coeff_l1</span> <span class="o">=</span> <span class="n">coeff_l1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coeff_l2</span> <span class="o">=</span> <span class="n">coeff_l2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coeff_activity</span> <span class="o">=</span> <span class="n">coeff_activity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="n">dropout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout_p</span> <span class="o">=</span> <span class="n">dropout_p</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">noisy_input</span> <span class="o">=</span> <span class="n">noisy_input</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_epochs</span> <span class="o">=</span> <span class="n">max_epochs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patience</span> <span class="o">=</span> <span class="n">patience</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dendrogram_cutoff</span> <span class="o">=</span> <span class="n">dendrogram_cutoff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">accur_thres</span> <span class="o">=</span> <span class="n">accur_thres</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">verbose</span> <span class="o">=</span> <span class="n">verbose</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="CellCnn.fit"><a class="viewcode-back" href="../../code.html#cellCnn.model.CellCnn.fit">[docs]</a>    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">train_samples</span><span class="p">,</span> <span class="n">train_phenotypes</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">valid_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">valid_phenotypes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">generate_valid_set</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot; Trains a CellCnn model.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - train_samples : List with input samples (e.g. cytometry samples) as numpy arrays.</span>
+<span class="sd">            - train_phenotypes : List of phenotypes associated with the samples in `train_samples`.</span>
+<span class="sd">            - outdir : Directory where output will be generated.</span>
+<span class="sd">            - valid_samples : List with samples to be used as validation set while training the</span>
+<span class="sd">                network.</span>
+<span class="sd">            - valid_phenotypes : List of phenotypes associated with the samples in `valid_samples`.</span>
+<span class="sd">            - generate_valid_set : If `valid_samples` is not provided, generate a validation set</span>
+<span class="sd">                from the `train_samples`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            A trained CellCnn model with the additional attribute `results`. The attribute `results`</span>
+<span class="sd">            is a dictionary with the following entries:</span>
+
+<span class="sd">            - clustering_result : clustered filter weights from all runs achieving</span>
+<span class="sd">                validation accuracy above the specified threshold `accur_thres`</span>
+<span class="sd">            - selected_filters : a consensus filter matrix from the above clustering result</span>
+<span class="sd">            - best_3_nets : the 3 best models (achieving highest validation accuracy)</span>
+<span class="sd">            - best_net : the best model</span>
+<span class="sd">            - w_best_net : filter and output weights of the best model</span>
+<span class="sd">            - accuracies : list of validation accuracies achieved by different models</span>
+<span class="sd">            - best_model_index : list index of the best model</span>
+<span class="sd">            - config : list of neural network configurations used</span>
+<span class="sd">            - scaler : a z-transform scaler object fitted to the training data</span>
+<span class="sd">            - n_classes : number of output classes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">res</span> <span class="o">=</span> <span class="n">train_model</span><span class="p">(</span><span class="n">train_samples</span><span class="p">,</span> <span class="n">train_phenotypes</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span>
+                          <span class="n">valid_samples</span><span class="p">,</span> <span class="n">valid_phenotypes</span><span class="p">,</span> <span class="n">generate_valid_set</span><span class="p">,</span>
+                          <span class="n">scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">nrun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nrun</span><span class="p">,</span> <span class="n">regression</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">regression</span><span class="p">,</span>
+                          <span class="n">ncell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nsubset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nsubset</span><span class="p">,</span> <span class="n">per_sample</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">per_sample</span><span class="p">,</span>
+                          <span class="n">subset_selection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subset_selection</span><span class="p">,</span>
+                          <span class="n">ncell_pooled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ncell_pooled</span><span class="p">,</span> <span class="n">nfilter_choice</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nfilter_choice</span><span class="p">,</span>
+                          <span class="n">learning_rate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span>
+                          <span class="n">coeff_l1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coeff_l2</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">,</span>
+                          <span class="n">dropout_p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout_p</span><span class="p">,</span> <span class="n">noisy_input</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">noisy_input</span><span class="p">,</span>
+                          <span class="n">coeff_activity</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coeff_activity</span><span class="p">,</span> <span class="n">max_epochs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_epochs</span><span class="p">,</span>
+                          <span class="n">patience</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patience</span><span class="p">,</span> <span class="n">dendrogram_cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dendrogram_cutoff</span><span class="p">,</span>
+                          <span class="n">accur_thres</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">accur_thres</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">results</span> <span class="o">=</span> <span class="n">res</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+<div class="viewcode-block" id="CellCnn.predict"><a class="viewcode-back" href="../../code.html#cellCnn.model.CellCnn.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">new_samples</span><span class="p">,</span> <span class="n">ncell_per_sample</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+
+        <span class="sd">&quot;&quot;&quot; Makes predictions for new samples.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            - new_samples : List with input samples (numpy arrays) for which predictions will be</span>
+<span class="sd">                made.</span>
+<span class="sd">            - ncell_per_sample : Size of the multi-cell inputs (only one multi-cell input is created</span>
+<span class="sd">                per input sample). If set to None, the size of the multi-cell inputs equals the</span>
+<span class="sd">                minimum size in `new_samples`.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            y_pred : Phenotype predictions for `new_samples`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">ncell_per_sample</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ncell_per_sample</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">new_samples</span><span class="p">])</span>
+        <span class="nb">print</span> <span class="s1">&#39;Predictions based on multi-cell inputs containing </span><span class="si">%d</span><span class="s1"> cells.&#39;</span> <span class="o">%</span> <span class="n">ncell_per_sample</span>
+
+        <span class="c1"># z-transform the new samples if we did that for the training samples</span>
+        <span class="n">scaler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;scaler&#39;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">scaler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">new_samples</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">new_samples</span><span class="p">)</span>
+            <span class="n">new_samples</span> <span class="o">=</span> <span class="p">[</span><span class="n">scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">new_samples</span><span class="p">]</span>
+
+        <span class="n">nmark</span> <span class="o">=</span> <span class="n">new_samples</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">n_classes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;n_classes&#39;</span><span class="p">]</span>
+
+        <span class="c1"># get the configuration of the top 3 models</span>
+        <span class="n">accuracies</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;accuracies&#39;</span><span class="p">]</span>
+        <span class="n">sorted_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">accuracies</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;config&#39;</span><span class="p">]</span>
+
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_samples</span><span class="p">),</span> <span class="n">n_classes</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">i_enum</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sorted_idx</span><span class="p">):</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ncell_pooled&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">nfilter</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;nfilter&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">maxpool_percentage</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">*</span> <span class="n">k</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">ncell</span>
+            <span class="n">ncell_pooled</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">maxpool_percentage</span> <span class="o">*</span> <span class="n">ncell_per_sample</span><span class="p">))</span>
+
+            <span class="c1"># build the model architecture</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">ncell_per_sample</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span> <span class="n">noisy_input</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">noisy_input</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                <span class="n">nfilter</span><span class="o">=</span><span class="n">nfilter</span><span class="p">,</span> <span class="n">coeff_l1</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                <span class="n">k</span><span class="o">=</span><span class="n">ncell_pooled</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dropout_p</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                                <span class="n">regression</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">regression</span><span class="p">,</span> <span class="n">n_classes</span><span class="o">=</span><span class="n">n_classes</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
+
+            <span class="c1"># and load the learned filter and output weights</span>
+            <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">results</span><span class="p">[</span><span class="s1">&#39;best_3_nets&#39;</span><span class="p">][</span><span class="n">i_enum</span><span class="p">]</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">set_weights</span><span class="p">(</span><span class="n">weights</span><span class="p">)</span>
+
+            <span class="c1"># select a random subset of `ncell_per_sample` and make predictions</span>
+            <span class="n">new_samples</span> <span class="o">=</span> <span class="p">[</span><span class="n">shuffle</span><span class="p">(</span><span class="n">x</span><span class="p">)[:</span><span class="n">ncell_per_sample</span><span class="p">]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">ncell_per_sample</span><span class="p">,</span> <span class="n">nmark</span><span class="p">)</span>
+                           <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">new_samples</span><span class="p">]</span>
+            <span class="n">data_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">new_samples</span><span class="p">)</span>
+            <span class="n">y_pred</span><span class="p">[</span><span class="n">i_enum</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">data_test</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div></div>
+
+
+<span class="k">def</span> <span class="nf">train_model</span><span class="p">(</span><span class="n">train_samples</span><span class="p">,</span> <span class="n">train_phenotypes</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span>
+                <span class="n">valid_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">valid_phenotypes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">generate_valid_set</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nrun</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">regression</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">ncell</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">nsubset</span><span class="o">=</span><span class="mi">4000</span><span class="p">,</span> <span class="n">per_sample</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">subset_selection</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
+                <span class="n">ncell_pooled</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span> <span class="n">nfilter_choice</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+                <span class="n">learning_rate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coeff_l1</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">dropout_p</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span>
+                <span class="n">noisy_input</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                <span class="n">dendrogram_cutoff</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">accur_thres</span><span class="o">=.</span><span class="mi">95</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot; Performs a CellCnn analysis &quot;&quot;&quot;</span>
+
+    <span class="c1"># copy the list of samples so that they are not modified in place</span>
+    <span class="n">train_samples</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">train_samples</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">valid_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">valid_samples</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">valid_samples</span><span class="p">)</span>
+
+    <span class="c1"># normalize extreme values</span>
+    <span class="c1"># we assume that 0 corresponds to the control class</span>
+    <span class="k">if</span> <span class="n">subset_selection</span> <span class="o">==</span> <span class="s1">&#39;outlier&#39;</span><span class="p">:</span>
+        <span class="n">ctrl_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">train_samples</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">test_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">train_samples</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">train_samples</span> <span class="o">=</span> <span class="n">normalize_outliers_to_control</span><span class="p">(</span><span class="n">ctrl_list</span><span class="p">,</span> <span class="n">test_list</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">valid_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">ctrl_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">valid_samples</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
+            <span class="n">test_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">valid_samples</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]]</span>
+            <span class="n">valid_samples</span> <span class="o">=</span> <span class="n">normalize_outliers_to_control</span><span class="p">(</span><span class="n">ctrl_list</span><span class="p">,</span> <span class="n">test_list</span><span class="p">)</span>
+
+    <span class="c1"># merge all input samples (X_train, X_valid)</span>
+    <span class="c1"># and generate an identifier for each of them (train_id, valid_id)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">valid_samples</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">generate_valid_set</span><span class="p">):</span>
+        <span class="n">sample_ids</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">))</span>
+        <span class="n">X_train</span><span class="p">,</span> <span class="n">id_train</span> <span class="o">=</span> <span class="n">combine_samples</span><span class="p">(</span><span class="n">train_samples</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="p">(</span><span class="n">valid_samples</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="n">generate_valid_set</span><span class="p">:</span>
+        <span class="n">sample_ids</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">))</span>
+        <span class="n">X</span><span class="p">,</span> <span class="n">sample_id</span> <span class="o">=</span> <span class="n">combine_samples</span><span class="p">(</span><span class="n">train_samples</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">)</span>
+        <span class="n">valid_phenotypes</span> <span class="o">=</span> <span class="n">train_phenotypes</span>
+
+        <span class="c1"># split into train-validation partitions</span>
+        <span class="n">eval_folds</span> <span class="o">=</span> <span class="mi">5</span>
+        <span class="c1">#kf = StratifiedKFold(sample_id, eval_folds)</span>
+        <span class="c1">#train_indices, valid_indices = next(iter(kf))</span>
+        <span class="n">kf</span> <span class="o">=</span> <span class="n">StratifiedKFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">eval_folds</span><span class="p">)</span>
+        <span class="n">train_indices</span><span class="p">,</span> <span class="n">valid_indices</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">kf</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">sample_id</span><span class="p">))</span>
+        <span class="n">X_train</span><span class="p">,</span> <span class="n">id_train</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">train_indices</span><span class="p">],</span> <span class="n">sample_id</span><span class="p">[</span><span class="n">train_indices</span><span class="p">]</span>
+        <span class="n">X_valid</span><span class="p">,</span> <span class="n">id_valid</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">valid_indices</span><span class="p">],</span> <span class="n">sample_id</span><span class="p">[</span><span class="n">valid_indices</span><span class="p">]</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sample_ids</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">))</span>
+        <span class="n">X_train</span><span class="p">,</span> <span class="n">id_train</span> <span class="o">=</span> <span class="n">combine_samples</span><span class="p">(</span><span class="n">train_samples</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">)</span>
+        <span class="n">sample_ids</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">))</span>
+        <span class="n">X_valid</span><span class="p">,</span> <span class="n">id_valid</span> <span class="o">=</span> <span class="n">combine_samples</span><span class="p">(</span><span class="n">valid_samples</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">scale</span><span class="p">:</span>
+        <span class="n">z_scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span>
+        <span class="n">z_scaler</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+        <span class="n">X_train</span> <span class="o">=</span> <span class="n">z_scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">z_scaler</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="n">X_train</span><span class="p">,</span> <span class="n">id_train</span> <span class="o">=</span> <span class="n">shuffle</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">id_train</span><span class="p">)</span>
+    <span class="n">train_phenotypes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">)</span>
+
+    <span class="c1"># an array containing the phenotype for each single cell</span>
+    <span class="n">y_train</span> <span class="o">=</span> <span class="n">train_phenotypes</span><span class="p">[</span><span class="n">id_train</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">valid_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="n">generate_valid_set</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">scale</span><span class="p">:</span>
+            <span class="n">X_valid</span> <span class="o">=</span> <span class="n">z_scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_valid</span><span class="p">)</span>
+
+        <span class="n">X_valid</span><span class="p">,</span> <span class="n">id_valid</span> <span class="o">=</span> <span class="n">shuffle</span><span class="p">(</span><span class="n">X_valid</span><span class="p">,</span> <span class="n">id_valid</span><span class="p">)</span>
+        <span class="n">valid_phenotypes</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">)</span>
+        <span class="n">y_valid</span> <span class="o">=</span> <span class="n">valid_phenotypes</span><span class="p">[</span><span class="n">id_valid</span><span class="p">]</span>
+
+    <span class="c1"># number of measured markers</span>
+    <span class="n">nmark</span> <span class="o">=</span> <span class="n">X_train</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># generate multi-cell inputs</span>
+    <span class="nb">print</span> <span class="s1">&#39;Generating multi-cell inputs...&#39;</span>
+
+    <span class="k">if</span> <span class="n">subset_selection</span> <span class="o">==</span> <span class="s1">&#39;outlier&#39;</span><span class="p">:</span>
+        <span class="c1"># here we assume that class 0 is always the control class</span>
+        <span class="n">x_ctrl_train</span> <span class="o">=</span> <span class="n">X_train</span><span class="p">[</span><span class="n">y_train</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">to_keep</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="p">(</span><span class="n">X_train</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">)))</span>
+        <span class="n">nsubset_ctrl</span> <span class="o">=</span> <span class="n">nsubset</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">train_phenotypes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># generate a fixed number of subsets per class</span>
+        <span class="n">nsubset_biased</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">pheno</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">))):</span>
+            <span class="n">nsubset_biased</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nsubset</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">train_phenotypes</span> <span class="o">==</span> <span class="n">pheno</span><span class="p">))</span>
+
+        <span class="n">X_tr</span><span class="p">,</span> <span class="n">y_tr</span> <span class="o">=</span> <span class="n">generate_biased_subsets</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">train_phenotypes</span><span class="p">,</span> <span class="n">id_train</span><span class="p">,</span> <span class="n">x_ctrl_train</span><span class="p">,</span>
+                                             <span class="n">nsubset_ctrl</span><span class="p">,</span> <span class="n">nsubset_biased</span><span class="p">,</span> <span class="n">ncell</span><span class="p">,</span> <span class="n">to_keep</span><span class="p">,</span>
+                                             <span class="n">id_ctrl</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">train_phenotypes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+                                             <span class="n">id_biased</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">train_phenotypes</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="c1"># save those because it takes long to generate</span>
+        <span class="c1">#np.save(os.path.join(outdir, &#39;X_tr.npy&#39;), X_tr)</span>
+        <span class="c1">#np.save(os.path.join(outdir, &#39;y_tr.npy&#39;), y_tr)</span>
+        <span class="c1">#X_tr = np.load(os.path.join(outdir, &#39;X_tr.npy&#39;))</span>
+        <span class="c1">#y_tr = np.load(os.path.join(outdir, &#39;y_tr.npy&#39;))</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">valid_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="n">generate_valid_set</span><span class="p">:</span>
+            <span class="n">x_ctrl_valid</span> <span class="o">=</span> <span class="n">X_valid</span><span class="p">[</span><span class="n">y_valid</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">nsubset_ctrl</span> <span class="o">=</span> <span class="n">nsubset</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">valid_phenotypes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+
+            <span class="c1"># generate a fixed number of subsets per class</span>
+            <span class="n">nsubset_biased</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">pheno</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">))):</span>
+                <span class="n">nsubset_biased</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nsubset</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">valid_phenotypes</span> <span class="o">==</span> <span class="n">pheno</span><span class="p">))</span>
+
+            <span class="n">to_keep</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="mf">0.1</span> <span class="o">*</span> <span class="p">(</span><span class="n">X_valid</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">)))</span>
+            <span class="n">X_v</span><span class="p">,</span> <span class="n">y_v</span> <span class="o">=</span> <span class="n">generate_biased_subsets</span><span class="p">(</span><span class="n">X_valid</span><span class="p">,</span> <span class="n">valid_phenotypes</span><span class="p">,</span> <span class="n">id_valid</span><span class="p">,</span> <span class="n">x_ctrl_valid</span><span class="p">,</span>
+                                               <span class="n">nsubset_ctrl</span><span class="p">,</span> <span class="n">nsubset_biased</span><span class="p">,</span> <span class="n">ncell</span><span class="p">,</span> <span class="n">to_keep</span><span class="p">,</span>
+                                               <span class="n">id_ctrl</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">valid_phenotypes</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+                                               <span class="n">id_biased</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">valid_phenotypes</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="c1"># save those because it takes long to generate</span>
+            <span class="c1">#np.save(os.path.join(outdir, &#39;X_v.npy&#39;), X_v)</span>
+            <span class="c1">#np.save(os.path.join(outdir, &#39;y_v.npy&#39;), y_v)</span>
+            <span class="c1">#X_v = np.load(os.path.join(outdir, &#39;X_v.npy&#39;))</span>
+            <span class="c1">#y_v = np.load(os.path.join(outdir, &#39;y_v.npy&#39;))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">cut</span> <span class="o">=</span> <span class="n">X_tr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">/</span> <span class="mi">5</span>
+            <span class="n">X_v</span> <span class="o">=</span> <span class="n">X_tr</span><span class="p">[:</span><span class="n">cut</span><span class="p">]</span>
+            <span class="n">y_v</span> <span class="o">=</span> <span class="n">y_tr</span><span class="p">[:</span><span class="n">cut</span><span class="p">]</span>
+            <span class="n">X_tr</span> <span class="o">=</span> <span class="n">X_tr</span><span class="p">[</span><span class="n">cut</span><span class="p">:]</span>
+            <span class="n">y_tr</span> <span class="o">=</span> <span class="n">y_tr</span><span class="p">[</span><span class="n">cut</span><span class="p">:]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># generate &#39;nsubset&#39; multi-cell inputs per input sample</span>
+        <span class="k">if</span> <span class="n">per_sample</span><span class="p">:</span>
+            <span class="n">X_tr</span><span class="p">,</span> <span class="n">y_tr</span> <span class="o">=</span> <span class="n">generate_subsets</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">train_phenotypes</span><span class="p">,</span> <span class="n">id_train</span><span class="p">,</span>
+                                          <span class="n">nsubset</span><span class="p">,</span> <span class="n">ncell</span><span class="p">,</span> <span class="n">per_sample</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">valid_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="n">generate_valid_set</span><span class="p">:</span>
+                <span class="n">X_v</span><span class="p">,</span> <span class="n">y_v</span> <span class="o">=</span> <span class="n">generate_subsets</span><span class="p">(</span><span class="n">X_valid</span><span class="p">,</span> <span class="n">valid_phenotypes</span><span class="p">,</span> <span class="n">id_valid</span><span class="p">,</span>
+                                            <span class="n">nsubset</span><span class="p">,</span> <span class="n">ncell</span><span class="p">,</span> <span class="n">per_sample</span><span class="p">)</span>
+        <span class="c1"># generate &#39;nsubset&#39; multi-cell inputs per class</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">nsubset_list</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">pheno</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">))):</span>
+                <span class="n">nsubset_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nsubset</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">train_phenotypes</span> <span class="o">==</span> <span class="n">pheno</span><span class="p">))</span>
+            <span class="n">X_tr</span><span class="p">,</span> <span class="n">y_tr</span> <span class="o">=</span> <span class="n">generate_subsets</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">train_phenotypes</span><span class="p">,</span> <span class="n">id_train</span><span class="p">,</span>
+                                          <span class="n">nsubset_list</span><span class="p">,</span> <span class="n">ncell</span><span class="p">,</span> <span class="n">per_sample</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="n">valid_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="n">generate_valid_set</span><span class="p">:</span>
+                <span class="n">nsubset_list</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">pheno</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">))):</span>
+                    <span class="n">nsubset_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nsubset</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">valid_phenotypes</span> <span class="o">==</span> <span class="n">pheno</span><span class="p">))</span>
+                <span class="n">X_v</span><span class="p">,</span> <span class="n">y_v</span> <span class="o">=</span> <span class="n">generate_subsets</span><span class="p">(</span><span class="n">X_valid</span><span class="p">,</span> <span class="n">valid_phenotypes</span><span class="p">,</span> <span class="n">id_valid</span><span class="p">,</span>
+                                            <span class="n">nsubset_list</span><span class="p">,</span> <span class="n">ncell</span><span class="p">,</span> <span class="n">per_sample</span><span class="p">)</span>
+    <span class="nb">print</span> <span class="s1">&#39;Done.&#39;</span>
+
+    <span class="c1">## neural network configuration ##</span>
+    <span class="c1"># batch size</span>
+    <span class="n">bs</span> <span class="o">=</span> <span class="mi">200</span>
+
+    <span class="c1"># keras needs (nbatch, ncell, nmark)</span>
+    <span class="n">X_tr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">X_tr</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">X_v</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="n">X_v</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">n_classes</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">regression</span><span class="p">:</span>
+        <span class="n">n_classes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">))</span>
+        <span class="n">y_tr</span> <span class="o">=</span> <span class="n">to_categorical</span><span class="p">(</span><span class="n">y_tr</span><span class="p">)</span>
+        <span class="n">y_v</span> <span class="o">=</span> <span class="n">to_categorical</span><span class="p">(</span><span class="n">y_v</span><span class="p">)</span>
+
+    <span class="c1"># train some neural networks with different parameter configurations</span>
+    <span class="n">accuracies</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nrun</span><span class="p">)</span>
+    <span class="n">w_store</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;sigma&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;nfilter&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;learning_rate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ncell_pooled&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">lr</span> <span class="o">=</span> <span class="n">learning_rate</span>
+    <span class="n">sigma</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">for</span> <span class="n">irun</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nrun</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
+            <span class="nb">print</span> <span class="s1">&#39;training network: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">irun</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">noisy_input</span><span class="p">:</span>
+            <span class="n">sigma</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">config</span><span class="p">[</span><span class="s1">&#39;sigma&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">learning_rate</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">lr</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">config</span><span class="p">[</span><span class="s1">&#39;learning_rate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">lr</span><span class="p">)</span>
+
+        <span class="c1"># choose number of filters for this run</span>
+        <span class="n">nfilter</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">nfilter_choice</span><span class="p">)</span>
+        <span class="n">config</span><span class="p">[</span><span class="s1">&#39;nfilter&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nfilter</span><span class="p">)</span>
+        <span class="nb">print</span> <span class="s1">&#39;Number of filters: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">nfilter</span>
+
+        <span class="c1"># choose number of cells pooled for this run</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">ncell_pooled</span><span class="p">)</span>
+        <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ncell_pooled&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="nb">print</span> <span class="s1">&#39;Cells pooled: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">k</span>
+
+        <span class="c1"># build the neural network</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span> <span class="n">noisy_input</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">nfilter</span><span class="p">,</span>
+                            <span class="n">coeff_l1</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span>
+                            <span class="n">dropout</span><span class="p">,</span> <span class="n">dropout_p</span><span class="p">,</span> <span class="n">regression</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">,</span> <span class="n">lr</span><span class="p">)</span>
+
+        <span class="n">filepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;nnet_run_</span><span class="si">%d</span><span class="s1">.hdf5&#39;</span> <span class="o">%</span> <span class="n">irun</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">regression</span><span class="p">:</span>
+                <span class="n">check</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">monitor</span><span class="o">=</span><span class="s1">&#39;val_loss&#39;</span><span class="p">,</span> <span class="n">save_best_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                        <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
+                <span class="n">earlyStopping</span> <span class="o">=</span> <span class="n">EarlyStopping</span><span class="p">(</span><span class="n">monitor</span><span class="o">=</span><span class="s1">&#39;val_loss&#39;</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="n">patience</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
+                <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_tr</span><span class="p">),</span> <span class="n">int32</span><span class="p">(</span><span class="n">y_tr</span><span class="p">),</span>
+                          <span class="n">nb_epoch</span><span class="o">=</span><span class="n">max_epochs</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">bs</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">check</span><span class="p">,</span> <span class="n">earlyStopping</span><span class="p">],</span>
+                          <span class="n">validation_data</span><span class="o">=</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_v</span><span class="p">),</span> <span class="n">int32</span><span class="p">(</span><span class="n">y_v</span><span class="p">)))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">check</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">monitor</span><span class="o">=</span><span class="s1">&#39;val_loss&#39;</span><span class="p">,</span> <span class="n">save_best_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                                        <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
+                <span class="n">earlyStopping</span> <span class="o">=</span> <span class="n">EarlyStopping</span><span class="p">(</span><span class="n">monitor</span><span class="o">=</span><span class="s1">&#39;val_loss&#39;</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="n">patience</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
+                <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_tr</span><span class="p">),</span> <span class="n">float32</span><span class="p">(</span><span class="n">y_tr</span><span class="p">),</span>
+                          <span class="n">nb_epoch</span><span class="o">=</span><span class="n">max_epochs</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">bs</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">check</span><span class="p">,</span> <span class="n">earlyStopping</span><span class="p">],</span>
+                          <span class="n">validation_data</span><span class="o">=</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_v</span><span class="p">),</span> <span class="n">float32</span><span class="p">(</span><span class="n">y_v</span><span class="p">)))</span>
+
+            <span class="c1"># load the model from the epoch with highest validation accuracy</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">load_weights</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">regression</span><span class="p">:</span>
+                <span class="n">valid_metric</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_v</span><span class="p">),</span> <span class="n">int32</span><span class="p">(</span><span class="n">y_v</span><span class="p">))[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+                <span class="nb">print</span> <span class="s1">&#39;Best validation accuracy: </span><span class="si">%.2f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">valid_metric</span>
+                <span class="n">accuracies</span><span class="p">[</span><span class="n">irun</span><span class="p">]</span> <span class="o">=</span> <span class="n">valid_metric</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">train_metric</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_tr</span><span class="p">),</span> <span class="n">float32</span><span class="p">(</span><span class="n">y_tr</span><span class="p">),</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">bs</span><span class="p">)</span>
+                <span class="nb">print</span> <span class="s1">&#39;Best train loss: </span><span class="si">%.2f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">train_metric</span>
+                <span class="n">valid_metric</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_v</span><span class="p">),</span> <span class="n">float32</span><span class="p">(</span><span class="n">y_v</span><span class="p">),</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">bs</span><span class="p">)</span>
+                <span class="nb">print</span> <span class="s1">&#39;Best validation loss: </span><span class="si">%.2f</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">valid_metric</span>
+                <span class="n">accuracies</span><span class="p">[</span><span class="n">irun</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span> <span class="n">valid_metric</span>
+
+            <span class="c1"># extract the network parameters</span>
+            <span class="n">w_store</span><span class="p">[</span><span class="n">irun</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">get_weights</span><span class="p">()</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;An exception was raised during training the network.</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">)</span>
+
+    <span class="c1"># the top 3 performing networks</span>
+    <span class="n">model_sorted_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">accuracies</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">][:</span><span class="mi">3</span><span class="p">]</span>
+    <span class="n">best_3_nets</span> <span class="o">=</span> <span class="p">[</span><span class="n">w_store</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">model_sorted_idx</span><span class="p">]</span>
+    <span class="n">best_net</span> <span class="o">=</span> <span class="n">best_3_nets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">best_accuracy_idx</span> <span class="o">=</span> <span class="n">model_sorted_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># weights from the best-performing network</span>
+    <span class="n">w_best_net</span> <span class="o">=</span> <span class="n">keras_param_vector</span><span class="p">(</span><span class="n">best_net</span><span class="p">)</span>
+
+    <span class="c1"># post-process the learned filters</span>
+    <span class="c1"># cluster weights from all networks that achieved accuracy above the specified thershold</span>
+    <span class="n">w_cons</span><span class="p">,</span> <span class="n">cluster_res</span> <span class="o">=</span> <span class="n">cluster_profiles</span><span class="p">(</span><span class="n">w_store</span><span class="p">,</span> <span class="n">accuracies</span><span class="p">,</span> <span class="n">accur_thres</span><span class="p">,</span> <span class="n">regression</span><span class="p">,</span>
+                                           <span class="n">dendrogram_cutoff</span><span class="o">=</span><span class="n">dendrogram_cutoff</span><span class="p">)</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">&#39;clustering_result&#39;</span><span class="p">:</span> <span class="n">cluster_res</span><span class="p">,</span>
+        <span class="s1">&#39;selected_filters&#39;</span><span class="p">:</span> <span class="n">w_cons</span><span class="p">,</span>
+        <span class="s1">&#39;best_net&#39;</span><span class="p">:</span> <span class="n">best_net</span><span class="p">,</span>
+        <span class="s1">&#39;best_3_nets&#39;</span><span class="p">:</span> <span class="n">best_3_nets</span><span class="p">,</span>
+        <span class="s1">&#39;w_best_net&#39;</span><span class="p">:</span> <span class="n">w_best_net</span><span class="p">,</span>
+        <span class="s1">&#39;accuracies&#39;</span><span class="p">:</span> <span class="n">accuracies</span><span class="p">,</span>
+        <span class="s1">&#39;best_model_index&#39;</span><span class="p">:</span> <span class="n">best_accuracy_idx</span><span class="p">,</span>
+        <span class="s1">&#39;config&#39;</span><span class="p">:</span> <span class="n">config</span><span class="p">,</span>
+        <span class="s1">&#39;scaler&#39;</span><span class="p">:</span> <span class="n">z_scaler</span><span class="p">,</span>
+        <span class="s1">&#39;n_classes&#39;</span> <span class="p">:</span> <span class="n">n_classes</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="n">valid_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">w_cons</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">regression</span><span class="p">:</span>
+            <span class="n">tau</span> <span class="o">=</span> <span class="n">get_filters_regression</span><span class="p">(</span><span class="n">w_cons</span><span class="p">,</span> <span class="n">z_scaler</span><span class="p">,</span> <span class="n">valid_samples</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">))</span>
+            <span class="n">results</span><span class="p">[</span><span class="s1">&#39;filter_tau&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tau</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">n1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">([</span><span class="n">xv</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">xv</span> <span class="ow">in</span> <span class="n">valid_samples</span><span class="p">])</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ncell_pooled&#39;</span><span class="p">][</span><span class="n">best_accuracy_idx</span><span class="p">]</span>
+            <span class="n">maxpool_percentage</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">*</span> <span class="n">k</span> <span class="o">/</span> <span class="n">ncell</span>
+            <span class="n">ntop</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">maxpool_percentage</span> <span class="o">*</span> <span class="n">n1</span><span class="p">)</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">get_filters_classification</span><span class="p">(</span><span class="n">w_cons</span><span class="p">,</span> <span class="n">z_scaler</span><span class="p">,</span> <span class="n">valid_samples</span><span class="p">,</span> <span class="n">valid_phenotypes</span><span class="p">,</span> <span class="n">ntop</span><span class="p">)</span>
+            <span class="n">results</span><span class="p">[</span><span class="s1">&#39;dist&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span>
+    <span class="k">return</span> <span class="n">results</span>
+
+<span class="k">def</span> <span class="nf">build_model</span><span class="p">(</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span> <span class="n">noisy_input</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">nfilter</span><span class="p">,</span> <span class="n">coeff_l1</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="p">,</span>
+                <span class="n">k</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="n">dropout_p</span><span class="p">,</span> <span class="n">regression</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot; Builds the neural network architecture &quot;&quot;&quot;</span>
+
+    <span class="c1"># the input layer</span>
+    <span class="n">data_input</span> <span class="o">=</span> <span class="n">Input</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nmark</span><span class="p">))</span>
+
+    <span class="c1"># for some reason the follwing causes an error</span>
+    <span class="c1">#data_input = GaussianNoise(sigma=sigma)(data_input)</span>
+
+    <span class="k">if</span> <span class="n">noisy_input</span><span class="p">:</span>
+        <span class="n">input2</span> <span class="o">=</span> <span class="n">GaussianNoise</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">)(</span><span class="n">data_input</span><span class="p">)</span>
+        <span class="c1"># the filters</span>
+        <span class="n">conv1</span> <span class="o">=</span> <span class="n">Convolution1D</span><span class="p">(</span><span class="n">nfilter</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
+                              <span class="n">W_regularizer</span><span class="o">=</span><span class="n">l1l2</span><span class="p">(</span><span class="n">l1</span><span class="o">=</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">l2</span><span class="o">=</span><span class="n">coeff_l2</span><span class="p">),</span>
+                              <span class="n">activity_regularizer</span><span class="o">=</span><span class="n">activity_KL</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="n">coeff_activity</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.05</span><span class="p">),</span>
+                              <span class="n">name</span><span class="o">=</span><span class="s1">&#39;conv1&#39;</span><span class="p">)(</span><span class="n">input2</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># the filters</span>
+        <span class="n">conv1</span> <span class="o">=</span> <span class="n">Convolution1D</span><span class="p">(</span><span class="n">nfilter</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
+                              <span class="n">W_regularizer</span><span class="o">=</span><span class="n">l1l2</span><span class="p">(</span><span class="n">l1</span><span class="o">=</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">l2</span><span class="o">=</span><span class="n">coeff_l2</span><span class="p">),</span>
+                              <span class="n">activity_regularizer</span><span class="o">=</span><span class="n">activity_KL</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="n">coeff_activity</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.05</span><span class="p">),</span>
+                              <span class="n">name</span><span class="o">=</span><span class="s1">&#39;conv1&#39;</span><span class="p">)(</span><span class="n">data_input</span><span class="p">)</span>
+    <span class="n">conv1</span> <span class="o">=</span> <span class="n">Activation</span><span class="p">(</span><span class="s1">&#39;relu&#39;</span><span class="p">)(</span><span class="n">conv1</span><span class="p">)</span>
+
+    <span class="c1"># the cell grouping part</span>
+    <span class="n">pool1</span> <span class="o">=</span> <span class="n">Lambda</span><span class="p">(</span><span class="n">select_top</span><span class="p">,</span> <span class="n">output_shape</span><span class="o">=</span><span class="p">(</span><span class="n">nfilter</span><span class="p">,),</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;k&#39;</span><span class="p">:</span><span class="n">k</span><span class="p">})(</span><span class="n">conv1</span><span class="p">)</span>
+    <span class="c1">#pool1 = AveragePooling1D(pool_length=ncell_pooled, stride=ncell_pooled, name=&#39;pool1&#39;)(select1)</span>
+    <span class="c1">#pool1 = MaxPooling1D(pool_length=ncell, stride=1, name=&#39;pool1&#39;)(conv1)</span>
+    <span class="c1">#pool1 = Flatten()(pool1)</span>
+
+    <span class="c1"># possibly add dropout</span>
+    <span class="k">if</span> <span class="n">dropout</span> <span class="ow">or</span> <span class="p">((</span><span class="n">dropout</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">nfilter</span> <span class="o">&gt;</span> <span class="mi">5</span><span class="p">)):</span>
+        <span class="n">pool1</span> <span class="o">=</span> <span class="n">Dropout</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">dropout_p</span><span class="p">)(</span><span class="n">pool1</span><span class="p">)</span>
+
+    <span class="c1"># network prediction output</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">regression</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="n">n_classes</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;softmax&#39;</span><span class="p">,</span>
+                       <span class="n">W_regularizer</span><span class="o">=</span><span class="n">l1l2</span><span class="p">(</span><span class="n">l1</span><span class="o">=</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">l2</span><span class="o">=</span><span class="n">coeff_l2</span><span class="p">),</span>
+                       <span class="n">name</span><span class="o">=</span><span class="s1">&#39;output&#39;</span><span class="p">)(</span><span class="n">pool1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;tanh&#39;</span><span class="p">,</span> <span class="n">W_regularizer</span><span class="o">=</span><span class="n">l1l2</span><span class="p">(</span><span class="n">l1</span><span class="o">=</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">l2</span><span class="o">=</span><span class="n">coeff_l2</span><span class="p">),</span>
+                       <span class="n">name</span><span class="o">=</span><span class="s1">&#39;output&#39;</span><span class="p">)(</span><span class="n">pool1</span><span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">data_input</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">regression</span><span class="p">:</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">optimizer</span><span class="o">=</span><span class="n">Adam</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">),</span>
+                      <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;categorical_crossentropy&#39;</span><span class="p">,</span>
+                      <span class="n">metrics</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;accuracy&#39;</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">optimizer</span><span class="o">=</span><span class="n">Adam</span><span class="p">(</span><span class="n">lr</span><span class="o">=</span><span class="n">lr</span><span class="p">),</span>
+                      <span class="n">loss</span><span class="o">=</span><span class="s1">&#39;mean_squared_error&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Eirini Arvaniti.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
