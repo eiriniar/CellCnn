@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # CellCnn documentation build configuration file, created by
-# sphinx-quickstart on Sat Feb 11 18:21:51 2017.
+# sphinx-quickstart on Mon Feb 13 21:46:49 2017.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.

@@ -7,8 +7,6 @@ SPHINXBUILD   = sphinx-build
 SPHINXPROJ    = CellCnn
 SOURCEDIR     = .
 BUILDDIR      = ../../cellCnn_docs
-PDFBUILDDIR   = /tmp
-PDF           = ../manual.pdf
 
 # Put it first so that "make" without argument is like "make help".
 help:
