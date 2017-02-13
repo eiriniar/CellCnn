@@ -30,38 +30,58 @@ class CellCnn(object):
     """ Creates a CellCnn model.
 
     Args:
-        - ncell : Number of cells per multi-cell input.
-        - nsubset : Total number of multi-cell inputs that will be generated per class, if
+        - ncell :
+            Number of cells per multi-cell input.
+        - nsubset :
+            Total number of multi-cell inputs that will be generated per class, if
             `per_sample` = `False`. Total number of multi-cell inputs that will be generated from
             each input sample, if `per_sample` = `True`.
-        - per_sample : Whether the nsubset argument refers to each class or each input sample.
+        - per_sample :
+            Whether the nsubset argument refers to each class or each input sample.
             For regression problems, it is automatically set to `True`.
-        - subset_selection : Can be 'random' or 'outlier'. Generate multi-cell inputs uniformly at
+        - subset_selection :
+            Can be 'random' or 'outlier'. Generate multi-cell inputs uniformly at
             random or biased towards outliers. The latter option is only relevant for detection of
             extremely rare (frequency < 0.1%) cell populations.
-        - ncell_pooled : A list specifying candidate numbers of cells that will be max-pooled per
+        - ncell_pooled :
+            A list specifying candidate numbers of cells that will be max-pooled per
             filter. For mean pooling, set `ncell_pooled` = `[ncell]`.
-        - nfilter_choice : A list specifying candidate numbers of filters for the neural network.
-        - scale : Whetherh to z-transform each feature (mean=0, std=1) prior to training.
-        - nrun : Number of neural network configurations to try (should be set >= 3).
-        - regression : Set to `True` for a regression problem. Default is `False`, which corresponds
+        - nfilter_choice :
+            A list specifying candidate numbers of filters for the neural network.
+        - scale :
+            Whetherh to z-transform each feature (mean=0, std=1) prior to training.
+        - nrun :
+            Number of neural network configurations to try (should be set >= 3).
+        - regression :
+            Set to `True` for a regression problem. Default is `False`, which corresponds
             to a classification setting.
-        - learning_rate : Learning rate for the Adam optimization algorithm. If set to `None`,
+        - learning_rate :
+            Learning rate for the Adam optimization algorithm. If set to `None`,
             learning rates in the range [0.001, 0.01] will be tried out.
-        - dropout : Whether to use dropout (at each epoch, set a neuron to zero with probability
+        - dropout :
+            Whether to use dropout (at each epoch, set a neuron to zero with probability
             `dropout_p`). The default behavior 'auto' uses dropout when `nfilter` > 5.
-        - dropout_p : The dropout probability.
-        - coeff_l1 : Coefficiant for L1 weight regularization.
-        - coeff_l2 : Coefficiant for L2 weight regularization.
-        - coeff_activity : Coefficiant for regularizing the activity at each filter.
-        - noisy_input : If `True`, a Gaussian noise layer is added after the input layer.
-        - max_epochs : Maximum number of iterations through the data.
-        - patience : Number of epochs before early stopping (stops if the validation loss does not
+        - dropout_p :
+            The dropout probability.
+        - coeff_l1 :
+            Coefficient for L1 weight regularization.
+        - coeff_l2 :
+            Coefficient for L2 weight regularization.
+        - coeff_activity :
+            Coefficient for regularizing the activity at each filter.
+        - noisy_input :
+            If `True`, a Gaussian noise layer is added after the input layer.
+        - max_epochs :
+            Maximum number of iterations through the data.
+        - patience :
+            Number of epochs before early stopping (stops if the validation loss does not
             decrease anymore).
-        - dendrogram_cutoff : Cutoff for hierarchical clustering of filter weights. Clustering is
+        - dendrogram_cutoff :
+            Cutoff for hierarchical clustering of filter weights. Clustering is
             performed using cosine similarity, so the cutof should be in [0, 1]. A lower cutoff will
             generate more clusters.
-        - accur_thres : Keep filters from models achieving at least this accuracy. If less than 3
+        - accur_thres :
+            Keep filters from models achieving at least this accuracy. If less than 3
             models pass the accuracy threshold, keep filters from the best 3 models.
     """
 
@@ -102,20 +122,25 @@ class CellCnn(object):
         """ Trains a CellCnn model.
 
         Args:
-            - train_samples : List with input samples (e.g. cytometry samples) as numpy arrays.
-            - train_phenotypes : List of phenotypes associated with the samples in `train_samples`.
-            - outdir : Directory where output will be generated.
-            - valid_samples : List with samples to be used as validation set while training the
-                network.
-            - valid_phenotypes : List of phenotypes associated with the samples in `valid_samples`.
-            - generate_valid_set : If `valid_samples` is not provided, generate a validation set
+            - train_samples :
+                List with input samples (e.g. cytometry samples) as numpy arrays.
+            - train_phenotypes :
+                List of phenotypes associated with the samples in `train_samples`.
+            - outdir :
+                Directory where output will be generated.
+            - valid_samples :
+                List with samples to be used as validation set while training the network.
+            - valid_phenotypes :
+                List of phenotypes associated with the samples in `valid_samples`.
+            - generate_valid_set :
+                If `valid_samples` is not provided, generate a validation set
                 from the `train_samples`.
 
         Returns:
             A trained CellCnn model with the additional attribute `results`. The attribute `results`
             is a dictionary with the following entries:
 
-            - clustering_result : clustered filter weights from all runs achieving
+            - clustering_result : clustered filter weights from all runs achieving \
                 validation accuracy above the specified threshold `accur_thres`
             - selected_filters : a consensus filter matrix from the above clustering result
             - best_3_nets : the 3 best models (achieving highest validation accuracy)
@@ -148,9 +173,10 @@ class CellCnn(object):
         """ Makes predictions for new samples.
 
         Args:
-            - new_samples : List with input samples (numpy arrays) for which predictions will be
-                made.
-            - ncell_per_sample : Size of the multi-cell inputs (only one multi-cell input is created
+            - new_samples :
+                List with input samples (numpy arrays) for which predictions will be made.
+            - ncell_per_sample :
+                Size of the multi-cell inputs (only one multi-cell input is created
                 per input sample). If set to None, the size of the multi-cell inputs equals the
                 minimum size in `new_samples`.
 
