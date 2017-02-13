@@ -19,3 +19,8 @@ Usage
 =====
 
 Examples are provided in the subfolder ``CellCnn/cellCnn/examples``.
+
+Documentation
+=============
+
+CellCnn's documentation is hosted on http://eiriniar.github.io/CellCnn/
