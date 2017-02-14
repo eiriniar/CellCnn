@@ -23,7 +23,7 @@ except ImportError:
 
 
 def plot_results_2class(results, samples, phenotypes, labels, outdir,
-                        percentage_drop_filter=.5, filter_response_thres=.5,
+                        percentage_drop_filter=.2, filter_response_thres=.5,
                         group_a='group a', group_b='group b',
                         clustering=None, add_filter_response=False,
                         percentage_drop_cluster=.1, stat_test='ttest',
@@ -33,18 +33,25 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
     """ Plots the results of a CellCnn analysis for a 2-class classification problem.
 
     Args:
-        - results: Dictionary containing the results of a CellCnn analysis.
-        - samples: Samples from which to visualize the selected cell populations.
-        - phenotypes: List of phenotypes corresponding to the provided `samples`.
-        - labels: Names of measured markers.
-        - outdir: Output directory where the generated plots will be stored.
-        - filter_response_thres: Threshold for choosing a responding cell population.
-            Should be in [0,1].
+        - results :
+            Dictionary containing the results of a CellCnn analysis.
+        - samples :
+            Samples from which to visualize the selected cell populations.
+        - phenotypes :
+            List of phenotypes corresponding to the provided `samples`.
+        - labels :
+            Names of measured markers.
+        - outdir :
+            Output directory where the generated plots will be stored.
+        - filter_response_thres :
+            Threshold for choosing a responding cell population. Should be in [0,1].
         - stat_test: 'ttest' | 'mannwhitneyu'
         - clustering: None | 'dbscan' | 'louvain'
 
     Returns:
-        A collection of plots for model interpretation. These plots are stored in `outdir`.
+        A list with the indices of selected discriminative filetrs. \
+        This function also produces a collection of plots for model interpretation.
+        These plots are stored in `outdir`.
     """
 
     # create the output directory
@@ -180,6 +187,7 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
                 suffix = 'filter_%d_cluster_%d' % (i_filter, cl_id)
                 plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes,
                                      outdir, suffix, stat_test, group_a, group_b, log_yscale)
+    return keep_idx
 
 def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_size=(10, 3)):
     if y_labels is None:

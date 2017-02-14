@@ -3,7 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-cellCnn/examples/NK_cell.py
+cellCnn/examples/private_examples
+cellCnn/examples/output_*
 
 .DS_Store
 overview_CellCnn.txt
