@@ -10,7 +10,6 @@ Welcome to CellCnn's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   includeme.rst
    code.rst
 
 Indices and tables
