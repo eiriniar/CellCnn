@@ -68,7 +68,7 @@
 
 
 <div class="viewcode-block" id="plot_results_2class"><a class="viewcode-back" href="../../code.html#cellCnn.plotting.plot_results_2class">[docs]</a><span class="k">def</span> <span class="nf">plot_results_2class</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span>
-                        <span class="n">percentage_drop_filter</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span> <span class="n">filter_response_thres</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span>
+                        <span class="n">percentage_drop_filter</span><span class="o">=.</span><span class="mi">2</span><span class="p">,</span> <span class="n">filter_response_thres</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span>
                         <span class="n">group_a</span><span class="o">=</span><span class="s1">&#39;group a&#39;</span><span class="p">,</span> <span class="n">group_b</span><span class="o">=</span><span class="s1">&#39;group b&#39;</span><span class="p">,</span>
                         <span class="n">clustering</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_filter_response</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                         <span class="n">percentage_drop_cluster</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span> <span class="n">stat_test</span><span class="o">=</span><span class="s1">&#39;ttest&#39;</span><span class="p">,</span>
@@ -78,18 +78,25 @@
     <span class="sd">&quot;&quot;&quot; Plots the results of a CellCnn analysis for a 2-class classification problem.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        - results: Dictionary containing the results of a CellCnn analysis.</span>
-<span class="sd">        - samples: Samples from which to visualize the selected cell populations.</span>
-<span class="sd">        - phenotypes: List of phenotypes corresponding to the provided `samples`.</span>
-<span class="sd">        - labels: Names of measured markers.</span>
-<span class="sd">        - outdir: Output directory where the generated plots will be stored.</span>
-<span class="sd">        - filter_response_thres: Threshold for choosing a responding cell population.</span>
-<span class="sd">            Should be in [0,1].</span>
+<span class="sd">        - results :</span>
+<span class="sd">            Dictionary containing the results of a CellCnn analysis.</span>
+<span class="sd">        - samples :</span>
+<span class="sd">            Samples from which to visualize the selected cell populations.</span>
+<span class="sd">        - phenotypes :</span>
+<span class="sd">            List of phenotypes corresponding to the provided `samples`.</span>
+<span class="sd">        - labels :</span>
+<span class="sd">            Names of measured markers.</span>
+<span class="sd">        - outdir :</span>
+<span class="sd">            Output directory where the generated plots will be stored.</span>
+<span class="sd">        - filter_response_thres :</span>
+<span class="sd">            Threshold for choosing a responding cell population. Should be in [0,1].</span>
 <span class="sd">        - stat_test: &#39;ttest&#39; | &#39;mannwhitneyu&#39;</span>
 <span class="sd">        - clustering: None | &#39;dbscan&#39; | &#39;louvain&#39;</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        A collection of plots for model interpretation. These plots are stored in `outdir`.</span>
+<span class="sd">        A list with the indices of selected discriminative filetrs. \</span>
+<span class="sd">        This function also produces a collection of plots for model interpretation.</span>
+<span class="sd">        These plots are stored in `outdir`.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># create the output directory</span>
@@ -224,7 +231,8 @@
                 <span class="n">zc</span> <span class="o">=</span> <span class="n">z1</span><span class="p">[</span><span class="n">clusters</span> <span class="o">==</span> <span class="n">cl_id</span><span class="p">]</span>
                 <span class="n">suffix</span> <span class="o">=</span> <span class="s1">&#39;filter_</span><span class="si">%d</span><span class="s1">_cluster_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i_filter</span><span class="p">,</span> <span class="n">cl_id</span><span class="p">)</span>
                 <span class="n">plot_selected_subset</span><span class="p">(</span><span class="n">xc</span><span class="p">,</span> <span class="n">zc</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">sample_sizes</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">,</span>
-                                     <span class="n">outdir</span><span class="p">,</span> <span class="n">suffix</span><span class="p">,</span> <span class="n">stat_test</span><span class="p">,</span> <span class="n">group_a</span><span class="p">,</span> <span class="n">group_b</span><span class="p">,</span> <span class="n">log_yscale</span><span class="p">)</span></div>
+                                     <span class="n">outdir</span><span class="p">,</span> <span class="n">suffix</span><span class="p">,</span> <span class="n">stat_test</span><span class="p">,</span> <span class="n">group_a</span><span class="p">,</span> <span class="n">group_b</span><span class="p">,</span> <span class="n">log_yscale</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">keep_idx</span></div>
 
 <span class="k">def</span> <span class="nf">plot_nn_weights</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">x_labels</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">row_linkage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)):</span>
     <span class="k">if</span> <span class="n">y_labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>

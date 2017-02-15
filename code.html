@@ -264,19 +264,39 @@ minimum size in <cite>new_samples</cite>.</dd>
 <p>This module contains functions for plotting the results of a CellCnn analysis.</p>
 <dl class="function">
 <dt id="cellCnn.plotting.plot_results_2class">
-<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results_2class</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>percentage_drop_filter=0.5</em>, <em>filter_response_thres=0.5</em>, <em>group_a='group a'</em>, <em>group_b='group b'</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>stat_test='ttest'</em>, <em>min_cluster_freq=0.2</em>, <em>plot_tsne=True</em>, <em>tsne_ncell=3000</em>, <em>log_yscale=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results_2class"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results_2class" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results_2class</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>percentage_drop_filter=0.2</em>, <em>filter_response_thres=0.5</em>, <em>group_a='group a'</em>, <em>group_b='group b'</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>stat_test='ttest'</em>, <em>min_cluster_freq=0.2</em>, <em>plot_tsne=True</em>, <em>tsne_ncell=3000</em>, <em>log_yscale=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results_2class"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results_2class" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plots the results of a CellCnn analysis for a 2-class classification problem.</p>
 <dl class="docutils">
 <dt>Args:</dt>
 <dd><ul class="first last simple">
-<li>results: Dictionary containing the results of a CellCnn analysis.</li>
-<li>samples: Samples from which to visualize the selected cell populations.</li>
-<li>phenotypes: List of phenotypes corresponding to the provided <cite>samples</cite>.</li>
-<li>labels: Names of measured markers.</li>
-<li>outdir: Output directory where the generated plots will be stored.</li>
 <li><dl class="first docutils">
-<dt>filter_response_thres: Threshold for choosing a responding cell population.</dt>
-<dd>Should be in [0,1].</dd>
+<dt>results :</dt>
+<dd>Dictionary containing the results of a CellCnn analysis.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>samples :</dt>
+<dd>Samples from which to visualize the selected cell populations.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>phenotypes :</dt>
+<dd>List of phenotypes corresponding to the provided <cite>samples</cite>.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>labels :</dt>
+<dd>Names of measured markers.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>outdir :</dt>
+<dd>Output directory where the generated plots will be stored.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>filter_response_thres :</dt>
+<dd>Threshold for choosing a responding cell population. Should be in [0,1].</dd>
 </dl>
 </li>
 <li>stat_test: &#8216;ttest&#8217; | &#8216;mannwhitneyu&#8217;</li>
@@ -284,7 +304,8 @@ minimum size in <cite>new_samples</cite>.</dd>
 </ul>
 </dd>
 <dt>Returns:</dt>
-<dd>A collection of plots for model interpretation. These plots are stored in <cite>outdir</cite>.</dd>
+<dd>A list with the indices of selected discriminative filetrs.         This function also produces a collection of plots for model interpretation.
+These plots are stored in <cite>outdir</cite>.</dd>
 </dl>
 </dd></dl>
 
