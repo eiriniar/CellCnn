@@ -256,8 +256,7 @@ def get_selected_cells(filter_w, data, filter_response_thres):
     nmark = data.shape[1]
     w, b = filter_w[:nmark], filter_w[nmark]
     g = relu(np.sum(w.reshape(1, -1) * data, axis=1) + b)
-    thres = filter_response_thres * np.max(g)
-    return (g > thres).astype(int)
+    return (g > filter_response_thres).astype(int)
 
 def create_graph(x1, k, g1=None, add_filter_response=False):
 

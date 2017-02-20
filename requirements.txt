@@ -9,4 +9,5 @@ h5py
 PyYAML
 git+https://github.com/Theano/Theano.git#egg=Theano
 Keras==1.0.4
+statsmodels
 python-igraph # only for clustering via the louvain method
