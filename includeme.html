@@ -27,8 +27,6 @@
     <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Documentation" href="code.html" />
-    <link rel="prev" title="Welcome to CellCnn’s documentation!" href="index.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -48,6 +46,7 @@
 <h1>CellCnn<a class="headerlink" href="#cellcnn" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>CellCnn is written in Python2.7. After having Python2.7 running on your system, please do the following:</p>
 <ol class="arabic simple">
 <li><dl class="first docutils">
 <dt>Clone the CellCnn repository:</dt>
@@ -65,10 +64,36 @@
 </dl>
 </li>
 </ol>
+<hr class="docutils" />
+<p>For the analysis of mass/flow cytometry data, the package <code class="docutils literal"><span class="pre">fcm</span></code> needs to be additionally installed:</p>
+<p><code class="docutils literal"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">fcm</span></code></p>
+<p>The <code class="docutils literal"><span class="pre">fcm</span></code> package internally uses a deprecated matplotlib function which raises an exception.
+As a workaround, you can get <code class="docutils literal"><span class="pre">fcm</span></code> running by editing the source code in <code class="docutils literal"><span class="pre">path_to_python/lib/python2.7/site-packages/fcm/core/gate.py</span></code> (<code class="docutils literal"><span class="pre">path_to_python</span></code> has to be replaced with the actual path in your system). Specifically:</p>
+<ol class="arabic simple">
+<li>Comment out line: <code class="docutils literal"><span class="pre">from</span> <span class="pre">matplotlib.nxutils</span> <span class="pre">import</span> <span class="pre">points_inside_poly</span></code></li>
+<li>Uncomment line: <code class="docutils literal"><span class="pre">idxs</span> <span class="pre">=</span> <span class="pre">points_in_poly(self.vert,</span> <span class="pre">fcm.view()[:,</span> <span class="pre">chan])</span></code></li>
+<li>Comment out line: <code class="docutils literal"><span class="pre">idxs</span> <span class="pre">=</span> <span class="pre">points_inside_poly(fcm.view()[:,</span> <span class="pre">chan],</span> <span class="pre">self.vert)</span></code></li>
+</ol>
 </div>
 <div class="section" id="usage">
 <h2>Usage<a class="headerlink" href="#usage" title="Permalink to this headline">¶</a></h2>
 <p>Examples are provided in the subfolder <code class="docutils literal"><span class="pre">CellCnn/cellCnn/examples</span></code>.</p>
+<hr class="docutils" />
+<p>Alternatively, for the analysis of mass/flow cytometry samples, CellCnn can be run from the command line.
+To get a list of command line options please run:</p>
+<p><code class="docutils literal"><span class="pre">python</span> <span class="pre">run_analysis.py</span> <span class="pre">--help</span></code></p>
+<p>For a CellCnn analysis with default settings only two arguments have to be provided:</p>
+<p><code class="docutils literal"><span class="pre">python</span> <span class="pre">run_analysis.py</span> <span class="pre">-f</span> <span class="pre">fcs_samples_with_labels.csv</span> <span class="pre">-m</span> <span class="pre">markers.csv</span></code></p>
+<div class="line-block">
+<div class="line">The first input argument is a two-column CSV file, where the first column specifies input sample filenames and the second column the corresponding class labels. An example file is provided in <code class="docutils literal"><span class="pre">CellCnn/cellCnn/examples/NK_fcs_samples_with_labels.csv</span></code>.</div>
+<div class="line">The second input argument is a CSV file containing the names of markers/channels that should be used for the analysis. An example file is provided in <code class="docutils literal"><span class="pre">CellCnn/cellCnn/examples/NK_markers.csv</span></code>.</div>
+</div>
+<p>For example, to perform the analysis outlined in <code class="docutils literal"><span class="pre">CellCnn/cellCnn/examples/NK_cell.ipynb</span></code>
+from the command line, you can run the following (assuming your current directory is <code class="docutils literal"><span class="pre">CellCnn/cellCnn/examples</span></code>):</p>
+<p><code class="docutils literal"><span class="pre">python</span> <span class="pre">../run_analysis.py</span> <span class="pre">-f</span> <span class="pre">NK_fcs_samples_with_labels.csv</span> <span class="pre">-m</span> <span class="pre">NK_markers.csv</span> <span class="pre">-i</span> <span class="pre">NK_cell_dataset/gated_NK/</span> <span class="pre">-o</span> <span class="pre">outdir_NK</span> <span class="pre">--max_epochs</span> <span class="pre">15</span> <span class="pre">--nrun</span> <span class="pre">10</span> <span class="pre">--train_perc</span> <span class="pre">0.6</span> <span class="pre">--ncell_pooled</span> <span class="pre">5</span> <span class="pre">10</span> <span class="pre">--plot</span> <span class="pre">--export_csv</span> <span class="pre">--group_a</span> <span class="pre">CMV-</span> <span class="pre">--group_b</span> <span class="pre">CMV+</span></code></p>
+<p>The above command performs a binary classification CellCnn analysis, exports the learned filter weights as CSV files in the directory <code class="docutils literal"><span class="pre">outdir_NK/csv_results</span></code> and generates some result plots in <code class="docutils literal"><span class="pre">outdir_NK/plots</span></code>. To
+refine the plots with different cutoff values for the selected filters and cell populations, you can load the pre-trained model results with the option <code class="docutils literal"><span class="pre">--load_results</span></code>:</p>
+<p><code class="docutils literal"><span class="pre">python</span> <span class="pre">../run_analysis.py</span> <span class="pre">-f</span> <span class="pre">NK_fcs_samples_with_labels.csv</span> <span class="pre">-m</span> <span class="pre">NK_markers.csv</span> <span class="pre">-i</span> <span class="pre">NK_cell_dataset/gated_NK/</span> <span class="pre">-o</span> <span class="pre">outdir_NK</span> <span class="pre">--plot</span> <span class="pre">--group_a</span> <span class="pre">CMV-</span> <span class="pre">--group_b</span> <span class="pre">CMV+</span> <span class="pre">--filter_response_thres</span> <span class="pre">0.3</span> <span class="pre">--load_results</span></code></p>
 </div>
 <div class="section" id="documentation">
 <h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h2>
@@ -95,8 +120,6 @@
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="index.html" title="previous chapter">Welcome to CellCnn&#8217;s documentation!</a></li>
-      <li>Next: <a href="code.html" title="next chapter">Documentation</a></li>
   </ul></li>
 </ul>
 </div>

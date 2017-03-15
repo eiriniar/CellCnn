@@ -71,10 +71,10 @@
 <div class="viewcode-block" id="plot_results_2class"><a class="viewcode-back" href="../../code.html#cellCnn.plotting.plot_results_2class">[docs]</a><span class="k">def</span> <span class="nf">plot_results_2class</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span>
                         <span class="n">percentage_drop_filter</span><span class="o">=.</span><span class="mi">2</span><span class="p">,</span> <span class="n">filter_response_thres</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                         <span class="n">response_grad_cutoff</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">group_a</span><span class="o">=</span><span class="s1">&#39;group a&#39;</span><span class="p">,</span> <span class="n">group_b</span><span class="o">=</span><span class="s1">&#39;group b&#39;</span><span class="p">,</span>
+                        <span class="n">stat_test</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">positive_filters_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">log_yscale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                         <span class="n">clustering</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_filter_response</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                        <span class="n">percentage_drop_cluster</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span> <span class="n">stat_test</span><span class="o">=</span><span class="s1">&#39;ttest&#39;</span><span class="p">,</span>
-                        <span class="n">min_cluster_freq</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">plot_tsne</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">tsne_ncell</span><span class="o">=</span><span class="mi">3000</span><span class="p">,</span>
-                        <span class="n">log_yscale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">positive_filters_only</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+                        <span class="n">percentage_drop_cluster</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span> <span class="n">min_cluster_freq</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
+                        <span class="n">plot_tsne</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">tsne_ncell</span><span class="o">=</span><span class="mi">3000</span><span class="p">):</span>
 
     <span class="sd">&quot;&quot;&quot; Plots the results of a CellCnn analysis for a 2-class classification problem.</span>
 
@@ -89,22 +89,74 @@
 <span class="sd">            Names of measured markers.</span>
 <span class="sd">        - outdir :</span>
 <span class="sd">            Output directory where the generated plots will be stored.</span>
+<span class="sd">        - percentage_drop_filter :</span>
+<span class="sd">            Threshold that defines which filters are most discriminative. Given an array ``diff``</span>
+<span class="sd">            of cell filter response differences sorted in decreasing order, keep a filter</span>
+<span class="sd">            ``i, i &gt;= 0`` if it holds that</span>
+<span class="sd">            ``diff[i-1] - diff[i] &lt; percentage_drop_filter * diff[i-1]``.</span>
 <span class="sd">        - filter_response_thres :</span>
 <span class="sd">            Threshold for choosing a responding cell population. Default is 0.</span>
-<span class="sd">        - stat_test: &#39;ttest&#39; | &#39;mannwhitneyu&#39;</span>
+<span class="sd">        - response_grad_cutoff :</span>
+<span class="sd">            Threshold on the gradient of the cell filter response CDF, might be useful for defining</span>
+<span class="sd">            the selected cell population.</span>
+<span class="sd">        - group_a :</span>
+<span class="sd">            Name of the first class.</span>
+<span class="sd">        - group_b :</span>
+<span class="sd">            Name of the second class.</span>
+<span class="sd">        - stat_test: None | &#39;ttest&#39; | &#39;mannwhitneyu&#39;</span>
+<span class="sd">            Optionally, perform a statistical test on selected cell population frequencies between</span>
+<span class="sd">            the two groups and report the corresponding p-value on the boxplot figure</span>
+<span class="sd">            (see plots description below). Default is None.</span>
+<span class="sd">        - positive_filters_only :</span>
+<span class="sd">            If True, only consider filters associated with higher cell population frequency in the</span>
+<span class="sd">            positive class.</span>
+<span class="sd">        - log_yscale :</span>
+<span class="sd">            If True, display the y-axis of the boxplot figure (see plots description below) in</span>
+<span class="sd">            logarithmic scale.</span>
 <span class="sd">        - clustering: None | &#39;dbscan&#39; | &#39;louvain&#39;</span>
+<span class="sd">            Post-processing option for selected cell populations. Default is None.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A list with the indices and corresponding cell filter response thresholds of selected</span>
 <span class="sd">        discriminative filters. \</span>
 <span class="sd">        This function also produces a collection of plots for model interpretation.</span>
-<span class="sd">        These plots are stored in `outdir`.</span>
+<span class="sd">        These plots are stored in `outdir`. They comprise the following:</span>
+
+<span class="sd">        - clustered_filter_weights.pdf :</span>
+<span class="sd">            Filter weight vectors from all trained networks that pass a validation accuracy</span>
+<span class="sd">            threshold, grouped in clusters via hierarchical clustering. Each row corresponds to</span>
+<span class="sd">            a filter. The last column indicates the weight connecting each filter to the output</span>
+<span class="sd">            positive class. Indices on the y-axis indicate the filter cluster memberships, as a</span>
+<span class="sd">            result of the hierarchical clustering procedure.</span>
+<span class="sd">        - consensus_filter_weights.pdf :</span>
+<span class="sd">            One representative filter per cluster is chosen (the filter with minimum distance to all</span>
+<span class="sd">            other memebers of the cluster). We call these selected filters &quot;consensus filters&quot;.</span>
+<span class="sd">        - best_net_weights.pdf :</span>
+<span class="sd">            Filter weight vectors of the network that achieved the highest validation accuracy.</span>
+<span class="sd">        - filter_response_differences.pdf :</span>
+<span class="sd">            Difference in cell filter response between the two classes for each consensus filter.</span>
+<span class="sd">            This plot helps decide on a cutoff (``percentage_drop_filter`` parameter) for selecting</span>
+<span class="sd">            discriminative filters.</span>
+
+<span class="sd">        In addition, the following plots are produced for each selected filter (e.g. filter ``i``):</span>
+
+<span class="sd">        - cdf_filter_i.pdf :</span>
+<span class="sd">            Cumulative distribution function of cell filter response for filter ``i``. This plot</span>
+<span class="sd">            helps decide on a cutoff (``filter_response_thres`` parameter) for selecting the</span>
+<span class="sd">            responding cell population.</span>
+
+<span class="sd">        - selected_population_distribution_filter_i.pdf :</span>
+<span class="sd">            Histograms of univariate marker expression profiles for the cell population selected by</span>
+<span class="sd">            filter ``i`` vs all cells.</span>
+
+<span class="sd">        - selected_population_boxplot_filter_i.pdf :</span>
+<span class="sd">            Boxplot of selected cell population frequencies in samples of the two classes.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># create the output directory</span>
     <span class="n">mkdir_p</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
 
-    <span class="c1"># numbe rof measured markers</span>
+    <span class="c1"># number of measured markers</span>
     <span class="n">nmark</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 
     <span class="c1"># plot the filter weights of the best network</span>
@@ -120,6 +172,7 @@
         <span class="n">plot_nn_weights</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">labels</span><span class="o">+</span><span class="p">[</span><span class="s1">&#39;output&#39;</span><span class="p">],</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
         <span class="n">filters</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;selected_filters&#39;</span><span class="p">]</span>
     <span class="k">else</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="s1">&#39;Consensus filters were not found, using the weights of the best network instead.&#39;</span>
         <span class="n">filters</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;w_best_net&#39;</span><span class="p">]</span>
 
     <span class="c1"># plot the filter clustering</span>
@@ -148,6 +201,14 @@
             <span class="n">keep_idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sorted_idx</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">break</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">()</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">set_style</span><span class="p">(</span><span class="s1">&#39;whitegrid&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dist</span><span class="p">)),</span> <span class="n">dist</span><span class="p">,</span> <span class="s1">&#39;--&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">xticks</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dist</span><span class="p">)),</span> <span class="p">[</span><span class="s1">&#39;filter </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">sorted_idx</span><span class="p">],</span> <span class="n">rotation</span><span class="o">=</span><span class="s1">&#39;vertical&#39;</span><span class="p">)</span>
+    <span class="n">sns</span><span class="o">.</span><span class="n">despine</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;filter_response_differences.pdf&#39;</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;pdf&#39;</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
     <span class="c1"># encode the sample and sample-phenotype for each cell</span>
     <span class="n">sample_sizes</span> <span class="o">=</span> <span class="p">[]</span>
@@ -183,9 +244,10 @@
             <span class="n">b_diff_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">by</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">by</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span> <span class="o">&gt;=</span> <span class="n">response_grad_cutoff</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">b_diff_idx</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">t</span> <span class="o">=</span> <span class="n">bx</span><span class="p">[</span><span class="n">b_diff_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
-        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">((</span><span class="n">t</span><span class="p">,</span> <span class="n">t</span><span class="p">),</span> <span class="p">(</span><span class="o">.</span><span class="mi">98</span><span class="p">,</span> <span class="mf">1.</span><span class="p">),</span> <span class="s1">&#39;r--&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">((</span><span class="n">t</span><span class="p">,</span> <span class="n">t</span><span class="p">),</span> <span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">gy</span><span class="p">),</span> <span class="mf">1.</span><span class="p">),</span> <span class="s1">&#39;r--&#39;</span><span class="p">)</span>
         <span class="n">sns</span><span class="o">.</span><span class="n">despine</span><span class="p">()</span>
-        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;cdf_</span><span class="si">%d</span><span class="s1">.png&#39;</span> <span class="o">%</span> <span class="n">i_filter</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;cdf_filter_</span><span class="si">%d</span><span class="s1">.pdf&#39;</span> <span class="o">%</span> <span class="n">i_filter</span><span class="p">),</span> <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;pdf&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
         <span class="n">condition</span> <span class="o">=</span> <span class="n">g</span> <span class="o">&gt;</span> <span class="n">t</span>
@@ -269,7 +331,7 @@
                            <span class="n">col_cluster</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">robust</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">yticklabels</span><span class="o">=</span><span class="n">y_labels</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">setp</span><span class="p">(</span><span class="n">clmap</span><span class="o">.</span><span class="n">ax_heatmap</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">get_majorticklabels</span><span class="p">(),</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">setp</span><span class="p">(</span><span class="n">clmap</span><span class="o">.</span><span class="n">ax_heatmap</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">get_majorticklabels</span><span class="p">(),</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
-    <span class="n">clmap</span><span class="o">.</span><span class="n">cax</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">clmap</span><span class="o">.</span><span class="n">cax</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
@@ -297,8 +359,12 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">freq_b</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
     <span class="c1"># perform a statistical test</span>
-    <span class="k">if</span> <span class="n">stat_test</span> <span class="o">==</span> <span class="s1">&#39;mannwhitneyu&#39;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">stat_test</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">pval</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">elif</span> <span class="n">stat_test</span> <span class="o">==</span> <span class="s1">&#39;mannwhitneyu&#39;</span><span class="p">:</span>
         <span class="n">_t</span><span class="p">,</span> <span class="n">pval</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">mannwhitneyu</span><span class="p">(</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">stat_test</span> <span class="o">==</span> <span class="s1">&#39;ttest&#39;</span><span class="p">:</span>
+        <span class="n">_t</span><span class="p">,</span> <span class="n">pval</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">ttest_ind</span><span class="p">(</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">_t</span><span class="p">,</span> <span class="n">pval</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">ttest_ind</span><span class="p">(</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">)</span>
 
@@ -314,8 +380,9 @@
     <span class="n">ax</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">boxplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;group&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;selected population frequency (%)&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">box</span><span class="p">,</span> <span class="n">width</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span>
                      <span class="n">palette</span><span class="o">=</span><span class="n">sns</span><span class="o">.</span><span class="n">color_palette</span><span class="p">(</span><span class="s1">&#39;Set2&#39;</span><span class="p">))</span>
     <span class="n">ax</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">swarmplot</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="s2">&quot;group&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;selected population frequency (%)&quot;</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">box</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;.25&quot;</span><span class="p">)</span>
-    <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="o">.</span><span class="mi">45</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> pval = </span><span class="si">%.2e</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">stat_test</span><span class="p">,</span> <span class="n">pval</span><span class="p">),</span> <span class="n">horizontalalignment</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span>
-            <span class="n">transform</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">transAxes</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="s1">&#39;bold&#39;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">stat_test</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="o">.</span><span class="mi">45</span><span class="p">,</span> <span class="mf">1.1</span><span class="p">,</span> <span class="s1">&#39;</span><span class="si">%s</span><span class="s1"> pval = </span><span class="si">%.2e</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">stat_test</span><span class="p">,</span> <span class="n">pval</span><span class="p">),</span> <span class="n">horizontalalignment</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span>
+                <span class="n">transform</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">transAxes</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="s1">&#39;bold&#39;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">log_yscale</span><span class="p">:</span>
         <span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">freq_a</span> <span class="o">+</span> <span class="n">freq_b</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>

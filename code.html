@@ -50,7 +50,7 @@
 <p>This module contains functions for performing a CellCnn analysis.</p>
 <dl class="class">
 <dt id="cellCnn.model.CellCnn">
-<em class="property">class </em><code class="descclassname">cellCnn.model.</code><code class="descname">CellCnn</code><span class="sig-paren">(</span><em>ncell=500, nsubset=4000, per_sample=False, subset_selection='random', ncell_pooled=[1, 5, 50, 100], nfilter_choice=[2, 3, 4, 5], scale=True, nrun=10, regression=False, learning_rate=None, coeff_l1=0, coeff_l2=0, dropout='auto', dropout_p=0.5, noisy_input=False, coeff_activity=0, max_epochs=50, patience=5, dendrogram_cutoff=0.4, accur_thres=0.95, verbose=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/model.html#CellCnn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.model.CellCnn" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">cellCnn.model.</code><code class="descname">CellCnn</code><span class="sig-paren">(</span><em>ncell=200, nsubset=1000, per_sample=False, subset_selection='random', ncell_pooled=[1, 5, 10, 20], nfilter_choice=[3, 4, 5, 6, 7, 8, 9], scale=True, nrun=10, regression=False, learning_rate=None, coeff_l1=0, coeff_l2=0.0001, dropout='auto', dropout_p=0.5, noisy_input=False, coeff_activity=0, max_epochs=50, patience=5, dendrogram_cutoff=0.4, accur_thres=0.95, verbose=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/model.html#CellCnn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.model.CellCnn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a CellCnn model.</p>
 <dl class="docutils">
 <dt>Args:</dt>
@@ -264,7 +264,7 @@ minimum size in <cite>new_samples</cite>.</dd>
 <p>This module contains functions for plotting the results of a CellCnn analysis.</p>
 <dl class="function">
 <dt id="cellCnn.plotting.plot_results_2class">
-<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results_2class</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>percentage_drop_filter=0.2</em>, <em>filter_response_thres=0</em>, <em>response_grad_cutoff=None</em>, <em>group_a='group a'</em>, <em>group_b='group b'</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>stat_test='ttest'</em>, <em>min_cluster_freq=0.2</em>, <em>plot_tsne=False</em>, <em>tsne_ncell=3000</em>, <em>log_yscale=False</em>, <em>positive_filters_only=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results_2class"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results_2class" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results_2class</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>percentage_drop_filter=0.2</em>, <em>filter_response_thres=0</em>, <em>response_grad_cutoff=None</em>, <em>group_a='group a'</em>, <em>group_b='group b'</em>, <em>stat_test=None</em>, <em>positive_filters_only=False</em>, <em>log_yscale=False</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>min_cluster_freq=0.2</em>, <em>plot_tsne=False</em>, <em>tsne_ncell=3000</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results_2class"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results_2class" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plots the results of a CellCnn analysis for a 2-class classification problem.</p>
 <dl class="docutils">
 <dt>Args:</dt>
@@ -295,18 +295,115 @@ minimum size in <cite>new_samples</cite>.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
+<dt>percentage_drop_filter :</dt>
+<dd>Threshold that defines which filters are most discriminative. Given an array <code class="docutils literal"><span class="pre">diff</span></code>
+of cell filter response differences sorted in decreasing order, keep a filter
+<code class="docutils literal"><span class="pre">i,</span> <span class="pre">i</span> <span class="pre">&gt;=</span> <span class="pre">0</span></code> if it holds that
+<code class="docutils literal"><span class="pre">diff[i-1]</span> <span class="pre">-</span> <span class="pre">diff[i]</span> <span class="pre">&lt;</span> <span class="pre">percentage_drop_filter</span> <span class="pre">*</span> <span class="pre">diff[i-1]</span></code>.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
 <dt>filter_response_thres :</dt>
 <dd>Threshold for choosing a responding cell population. Default is 0.</dd>
 </dl>
 </li>
-<li>stat_test: &#8216;ttest&#8217; | &#8216;mannwhitneyu&#8217;</li>
-<li>clustering: None | &#8216;dbscan&#8217; | &#8216;louvain&#8217;</li>
+<li><dl class="first docutils">
+<dt>response_grad_cutoff :</dt>
+<dd>Threshold on the gradient of the cell filter response CDF, might be useful for defining
+the selected cell population.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>group_a :</dt>
+<dd>Name of the first class.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>group_b :</dt>
+<dd>Name of the second class.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>stat_test: None | &#8216;ttest&#8217; | &#8216;mannwhitneyu&#8217;</dt>
+<dd>Optionally, perform a statistical test on selected cell population frequencies between
+the two groups and report the corresponding p-value on the boxplot figure
+(see plots description below). Default is None.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>positive_filters_only :</dt>
+<dd>If True, only consider filters associated with higher cell population frequency in the
+positive class.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>log_yscale :</dt>
+<dd>If True, display the y-axis of the boxplot figure (see plots description below) in
+logarithmic scale.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>clustering: None | &#8216;dbscan&#8217; | &#8216;louvain&#8217;</dt>
+<dd>Post-processing option for selected cell populations. Default is None.</dd>
+</dl>
+</li>
 </ul>
 </dd>
 <dt>Returns:</dt>
-<dd>A list with the indices and corresponding cell filter response thresholds of selected
+<dd><p class="first">A list with the indices and corresponding cell filter response thresholds of selected
 discriminative filters.         This function also produces a collection of plots for model interpretation.
-These plots are stored in <cite>outdir</cite>.</dd>
+These plots are stored in <cite>outdir</cite>. They comprise the following:</p>
+<ul class="simple">
+<li><dl class="first docutils">
+<dt>clustered_filter_weights.pdf :</dt>
+<dd>Filter weight vectors from all trained networks that pass a validation accuracy
+threshold, grouped in clusters via hierarchical clustering. Each row corresponds to
+a filter. The last column indicates the weight connecting each filter to the output
+positive class. Indices on the y-axis indicate the filter cluster memberships, as a
+result of the hierarchical clustering procedure.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>consensus_filter_weights.pdf :</dt>
+<dd>One representative filter per cluster is chosen (the filter with minimum distance to all
+other memebers of the cluster). We call these selected filters &#8220;consensus filters&#8221;.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>best_net_weights.pdf :</dt>
+<dd>Filter weight vectors of the network that achieved the highest validation accuracy.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>filter_response_differences.pdf :</dt>
+<dd>Difference in cell filter response between the two classes for each consensus filter.
+This plot helps decide on a cutoff (<code class="docutils literal"><span class="pre">percentage_drop_filter</span></code> parameter) for selecting
+discriminative filters.</dd>
+</dl>
+</li>
+</ul>
+<p>In addition, the following plots are produced for each selected filter (e.g. filter <code class="docutils literal"><span class="pre">i</span></code>):</p>
+<ul class="last simple">
+<li><dl class="first docutils">
+<dt>cdf_filter_i.pdf :</dt>
+<dd>Cumulative distribution function of cell filter response for filter <code class="docutils literal"><span class="pre">i</span></code>. This plot
+helps decide on a cutoff (<code class="docutils literal"><span class="pre">filter_response_thres</span></code> parameter) for selecting the
+responding cell population.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>selected_population_distribution_filter_i.pdf :</dt>
+<dd>Histograms of univariate marker expression profiles for the cell population selected by
+filter <code class="docutils literal"><span class="pre">i</span></code> vs all cells.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>selected_population_boxplot_filter_i.pdf :</dt>
+<dd>Boxplot of selected cell population frequencies in samples of the two classes.</dd>
+</dl>
+</li>
+</ul>
+</dd>
 </dl>
 </dd></dl>
 
