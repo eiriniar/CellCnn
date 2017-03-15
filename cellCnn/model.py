@@ -13,6 +13,7 @@ from cellCnn.utils import combine_samples, normalize_outliers_to_control
 from cellCnn.utils import cluster_profiles, keras_param_vector
 from cellCnn.utils import generate_subsets, generate_biased_subsets
 from cellCnn.utils import get_filters_classification, get_filters_regression
+from cellCnn.utils import mkdir_p
 from cellCnn.theano_utils import select_top, float32, int32, activity_KL
 
 from keras.layers import Input, Dense, Lambda, Activation, Dropout
@@ -85,10 +86,10 @@ class CellCnn(object):
             models pass the accuracy threshold, keep filters from the best 3 models.
     """
 
-    def __init__(self, ncell=500, nsubset=4000, per_sample=False, subset_selection='random',
-                 ncell_pooled=[1, 5, 50, 100], nfilter_choice=[2, 3, 4, 5],
+    def __init__(self, ncell=200, nsubset=1000, per_sample=False, subset_selection='random',
+                 ncell_pooled=[1, 5, 10, 20], nfilter_choice=range(3, 10),
                  scale=True, nrun=10, regression=False,
-                 learning_rate=None, coeff_l1=0, coeff_l2=0, dropout='auto', dropout_p=.5,
+                 learning_rate=None, coeff_l1=0, coeff_l2=0.0001, dropout='auto', dropout_p=.5,
                  noisy_input=False, coeff_activity=0, max_epochs=50, patience=5,
                  dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
 
@@ -238,6 +239,7 @@ def train_model(train_samples, train_phenotypes, outdir,
                 dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
 
     """ Performs a CellCnn analysis """
+    mkdir_p(outdir)
 
     # copy the list of samples so that they are not modified in place
     train_samples = copy.deepcopy(train_samples)

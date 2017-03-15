@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 cellCnn/examples/private_examples
-cellCnn/examples/output_*
+cellCnn/examples/out*
 
 .DS_Store
 overview_CellCnn.txt

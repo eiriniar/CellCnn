@@ -26,10 +26,10 @@ except ImportError:
 def plot_results_2class(results, samples, phenotypes, labels, outdir,
                         percentage_drop_filter=.2, filter_response_thres=0,
                         response_grad_cutoff=None, group_a='group a', group_b='group b',
+                        stat_test=None, positive_filters_only=False, log_yscale=False,
                         clustering=None, add_filter_response=False,
-                        percentage_drop_cluster=.1, stat_test='ttest',
-                        min_cluster_freq=0.2, plot_tsne=False, tsne_ncell=3000,
-                        log_yscale=False, positive_filters_only=False):
+                        percentage_drop_cluster=.1, min_cluster_freq=0.2,
+                        plot_tsne=False, tsne_ncell=3000):
 
     """ Plots the results of a CellCnn analysis for a 2-class classification problem.
 
@@ -44,22 +44,74 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
             Names of measured markers.
         - outdir :
             Output directory where the generated plots will be stored.
+        - percentage_drop_filter :
+            Threshold that defines which filters are most discriminative. Given an array ``diff``
+            of cell filter response differences sorted in decreasing order, keep a filter
+            ``i, i >= 0`` if it holds that
+            ``diff[i-1] - diff[i] < percentage_drop_filter * diff[i-1]``.
         - filter_response_thres :
             Threshold for choosing a responding cell population. Default is 0.
-        - stat_test: 'ttest' | 'mannwhitneyu'
+        - response_grad_cutoff :
+            Threshold on the gradient of the cell filter response CDF, might be useful for defining
+            the selected cell population.
+        - group_a :
+            Name of the first class.
+        - group_b :
+            Name of the second class.
+        - stat_test: None | 'ttest' | 'mannwhitneyu'
+            Optionally, perform a statistical test on selected cell population frequencies between
+            the two groups and report the corresponding p-value on the boxplot figure
+            (see plots description below). Default is None.
+        - positive_filters_only :
+            If True, only consider filters associated with higher cell population frequency in the
+            positive class.
+        - log_yscale :
+            If True, display the y-axis of the boxplot figure (see plots description below) in
+            logarithmic scale.
         - clustering: None | 'dbscan' | 'louvain'
+            Post-processing option for selected cell populations. Default is None.
 
     Returns:
         A list with the indices and corresponding cell filter response thresholds of selected
         discriminative filters. \
         This function also produces a collection of plots for model interpretation.
-        These plots are stored in `outdir`.
+        These plots are stored in `outdir`. They comprise the following:
+
+        - clustered_filter_weights.pdf :
+            Filter weight vectors from all trained networks that pass a validation accuracy
+            threshold, grouped in clusters via hierarchical clustering. Each row corresponds to
+            a filter. The last column indicates the weight connecting each filter to the output
+            positive class. Indices on the y-axis indicate the filter cluster memberships, as a
+            result of the hierarchical clustering procedure.
+        - consensus_filter_weights.pdf :
+            One representative filter per cluster is chosen (the filter with minimum distance to all
+            other memebers of the cluster). We call these selected filters "consensus filters".
+        - best_net_weights.pdf :
+            Filter weight vectors of the network that achieved the highest validation accuracy.
+        - filter_response_differences.pdf :
+            Difference in cell filter response between the two classes for each consensus filter.
+            This plot helps decide on a cutoff (``percentage_drop_filter`` parameter) for selecting
+            discriminative filters.
+
+        In addition, the following plots are produced for each selected filter (e.g. filter ``i``):
+
+        - cdf_filter_i.pdf :
+            Cumulative distribution function of cell filter response for filter ``i``. This plot
+            helps decide on a cutoff (``filter_response_thres`` parameter) for selecting the
+            responding cell population.
+
+        - selected_population_distribution_filter_i.pdf :
+            Histograms of univariate marker expression profiles for the cell population selected by
+            filter ``i`` vs all cells.
+
+        - selected_population_boxplot_filter_i.pdf :
+            Boxplot of selected cell population frequencies in samples of the two classes.
     """
 
     # create the output directory
     mkdir_p(outdir)
 
-    # numbe rof measured markers
+    # number of measured markers
     nmark = samples[0].shape[1]
 
     # plot the filter weights of the best network
@@ -75,6 +127,7 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
         plot_nn_weights(w, labels+['output'], fig_path, fig_size=(10, 10))
         filters = results['selected_filters']
     else:
+        print 'Consensus filters were not found, using the weights of the best network instead.'
         filters = results['w_best_net']
 
     # plot the filter clustering
@@ -103,6 +156,14 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
             keep_idx.append(sorted_idx[i])
         else:
             break
+    plt.figure()
+    sns.set_style('whitegrid')
+    plt.plot(range(len(dist)), dist, '--')
+    plt.xticks(range(len(dist)), ['filter %d' % i for i in sorted_idx], rotation='vertical')
+    sns.despine()
+    plt.savefig(os.path.join(outdir, 'filter_response_differences.pdf'), format='pdf')
+    plt.clf()
+    plt.close()
 
     # encode the sample and sample-phenotype for each cell
     sample_sizes = []
@@ -138,9 +199,10 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
             b_diff_idx = np.where(by[:-1] - by[1:] >= response_grad_cutoff)[0]
             if len(b_diff_idx) > 0:
                 t = bx[b_diff_idx[0]]
-        plt.plot((t, t), (.98, 1.), 'r--')
+        plt.plot((t, t), (np.min(gy), 1.), 'r--')
         sns.despine()
-        plt.savefig(os.path.join(outdir, 'cdf_%d.png' % i_filter))
+        plt.savefig(os.path.join(outdir, 'cdf_filter_%d.pdf' % i_filter), format='pdf')
+        plt.clf()
         plt.close()
 
         condition = g > t
@@ -224,7 +286,7 @@ def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_
                            col_cluster=False, robust=True, yticklabels=y_labels)
     plt.setp(clmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
     plt.setp(clmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
-    clmap.cax.set_visible(False)
+    clmap.cax.set_visible(True)
     plt.savefig(fig_path)
     plt.clf()
     plt.close()
@@ -252,8 +314,12 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
         else:
             freq_b.append(freq)
     # perform a statistical test
-    if stat_test == 'mannwhitneyu':
+    if stat_test is None:
+        pval = None
+    elif stat_test == 'mannwhitneyu':
         _t, pval = stats.mannwhitneyu(freq_a, freq_b)
+    elif stat_test == 'ttest':
+        _t, pval = stats.ttest_ind(freq_a, freq_b)
     else:
         _t, pval = stats.ttest_ind(freq_a, freq_b)
 
@@ -269,8 +335,9 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
     ax = sns.boxplot(x="group", y="selected population frequency (%)", data=box, width=.5,
                      palette=sns.color_palette('Set2'))
     ax = sns.swarmplot(x="group", y="selected population frequency (%)", data=box, color=".25")
-    ax.text(.45, 1.1, '%s pval = %.2e' % (stat_test, pval), horizontalalignment='center',
-            transform=ax.transAxes, size=8, weight='bold')
+    if stat_test is not None:
+        ax.text(.45, 1.1, '%s pval = %.2e' % (stat_test, pval), horizontalalignment='center',
+                transform=ax.transAxes, size=8, weight='bold')
     if log_yscale:
         ax.set_yscale('log')
     plt.ylim(0, np.max(freq_a + freq_b) + 1)

@@ -3,8 +3,10 @@
 
 import os
 import errno
+import cPickle as pickle
 from collections import Counter
 import numpy as np
+import pandas as pd
 from cellCnn.downsample import random_subsample, kmeans_subsample, outlier_subsample
 from cellCnn.downsample import weighted_subsample
 import sklearn.utils as sku
@@ -14,9 +16,11 @@ from scipy.cluster.hierarchy import fcluster
 from scipy import stats
 from scipy.sparse import coo_matrix
 try:
+    import fcm
     import igraph
 except ImportError:
     pass
+
 
 def mkdir_p(path):
     try:
@@ -26,6 +30,34 @@ def mkdir_p(path):
             pass
         else:
             raise
+
+def get_data(indir, info, marker_names, do_arcsinh, cofactor):
+    fnames, phenotypes = info[:, 0], info[:, 1]
+    sample_list = []
+    for fname in fnames:
+        full_path = os.path.join(indir, fname)
+        fcs = fcm.loadFCS(full_path, transform=None, auto_comp=False)
+        marker_idx = [fcs.channels.index(name) for name in marker_names]
+        x = np.asarray(fcs)[:, marker_idx]
+        if do_arcsinh:
+            x = ftrans(x, cofactor)
+        sample_list.append(x)
+    return sample_list, list(phenotypes)
+
+def save_results(results, outdir, labels, export_csv):
+    pickle.dump(results, open(os.path.join(outdir, 'results.pkl'), 'w'))
+    if export_csv:
+        csv_dir = os.path.join(outdir, 'csv_results')
+        mkdir_p(csv_dir)
+        w = pd.DataFrame(results['w_best_net'], 
+                         columns=labels+['constant', 'out0', 'out1'])
+        w.to_csv(os.path.join(csv_dir, 'filters_best_net.csv'), index=False)
+        w = pd.DataFrame(results['selected_filters'], 
+                         columns=labels+['constant', 'out0', 'out1'])
+        w.to_csv(os.path.join(csv_dir, 'filters_consensus.csv'), index=False)
+        w = pd.DataFrame(results['clustering_result']['w'], 
+                         columns=labels+['constant', 'out0', 'out1'])
+        w.to_csv(os.path.join(csv_dir, 'filters_all.csv'), index=False)
 
 def get_items(l, idx):
     return [l[i] for i in idx]
