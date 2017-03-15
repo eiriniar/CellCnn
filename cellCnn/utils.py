@@ -284,11 +284,19 @@ def get_filters_regression(filters, scaler, valid_samples, valid_phenotypes):
         tau[ii, 0] = stats.kendalltau(y_pred, np.array(valid_phenotypes))[0]
     return tau
 
-def get_selected_cells(filter_w, data, filter_response_thres):
+def get_selected_cells(filter_w, data, scaler=None, filter_response_thres=0,
+                       export_continuous=False):
     nmark = data.shape[1]
+    if scaler is not None:
+        data = scaler.transform(data)
     w, b = filter_w[:nmark], filter_w[nmark]
-    g = relu(np.sum(w.reshape(1, -1) * data, axis=1) + b)
-    return (g > filter_response_thres).astype(int)
+    g = np.sum(w.reshape(1, -1) * data, axis=1) + b
+    if export_continuous:
+        g = relu(g).reshape(-1, 1)
+        g_thres = (g > filter_response_thres).reshape(-1, 1)
+        return np.hstack([g, g_thres])
+    else:
+        return (g > filter_response_thres).astype(int)
 
 def create_graph(x1, k, g1=None, add_filter_response=False):
 

@@ -7,7 +7,7 @@ import cPickle as pickle
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
-from cellCnn.utils import get_data, save_results, mkdir_p
+from cellCnn.utils import get_data, save_results, mkdir_p, get_selected_cells
 from cellCnn.plotting import plot_results_2class
 from cellCnn.model import CellCnn
 
@@ -23,11 +23,13 @@ def main():
                         help='directory where input FCS files are located')
     parser.add_argument('-o', '--outdir', default='output',
                         help='directory where output will be generated')
-    parser.add_argument('-e', '--export_csv', action='store_true', default=False,
+    parser.add_argument('--export_csv', action='store_true', default=False,
                         help='export network weights as csv files')
     parser.add_argument('-p', '--plot', action='store_true', default=False,
                         help='whether to plot results ' \
                              '(currently works only for binary classification)')
+    parser.add_argument('--export_selected_cells', action='store_true', default=False,
+                        help='whether to export selected cell populations')
     parser.add_argument('-l', '--load_results', action='store_true', default=False,
                         help='whether to load precomputed results')
 
@@ -143,15 +145,31 @@ def main():
         results = pickle.load(open(os.path.join(args.outdir, 'results.pkl'), 'r'))
 
     # plot results (currently only for binary classification)
-    if args.plot:
+    if args.plot or args.export_selected_cells:
         mkdir_p(os.path.join(args.outdir, 'plots'))
-        plot_results_2class(results, samples, phenotypes,
-                            marker_names, os.path.join(args.outdir, 'plots'),
-                            percentage_drop_filter=args.percentage_drop_filter,
-                            filter_response_thres=args.filter_response_thres,
-                            group_a=args.group_a, group_b=args.group_b,
-                            stat_test=args.stat_test,
-                            positive_filters_only=args.positive_filters_only)
+        filter_info = plot_results_2class(results, samples, phenotypes,
+                                          marker_names, os.path.join(args.outdir, 'plots'),
+                                          percentage_drop_filter=args.percentage_drop_filter,
+                                          filter_response_thres=args.filter_response_thres,
+                                          group_a=args.group_a, group_b=args.group_b,
+                                          stat_test=args.stat_test,
+                                          positive_filters_only=args.positive_filters_only)
+        if args.export_selected_cells:
+            csv_dir = os.path.join(args.outdir, 'selected_cells')
+            mkdir_p(csv_dir)
+            nfilter = len(filter_info)
+            sample_names = [name.split('.fcs')[0] for name in list(fcs_info[:,0])]
+            # for each sample
+            for x, x_name in zip(samples, sample_names):
+                flags = np.zeros((x.shape[0], 2*nfilter))
+                columns = []
+                # for each filter
+                for i, (filter_idx, thres) in enumerate(filter_info):
+                    flags[:, 2*i:2*(i+1)] = get_selected_cells(
+                        results['selected_filters'][filter_idx], x, results['scaler'], thres, True)
+                    columns += ['filter_%d_continuous' % filter_idx, 'filter_%d_binary' % filter_idx]
+                df = pd.DataFrame(flags, columns=columns)
+                df.to_csv(os.path.join(csv_dir, x_name+'_selected_cells.csv'), index=False)
 
 
 if __name__ == '__main__':
