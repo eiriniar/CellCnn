@@ -21,7 +21,7 @@ CellCnn is written in Python2.7. After having Python2.7 running on your system, 
 
 For the analysis of mass/flow cytometry data, the package ``fcm`` needs to be additionally installed:
 
-``pip install fcm``
+``pip install fcm==0.9.1``
 
 The ``fcm`` package internally uses a deprecated matplotlib function which raises an exception.
 As a workaround, you can get ``fcm`` running by editing the source code in ``path_to_python/lib/python2.7/site-packages/fcm/core/gate.py`` (``path_to_python`` has to be replaced with the actual path in your system). Specifically:
