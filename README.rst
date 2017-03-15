@@ -55,8 +55,9 @@ from the command line, you can run the following (assuming your current director
 
 ``python ../run_analysis.py -f NK_fcs_samples_with_labels.csv -m NK_markers.csv -i NK_cell_dataset/gated_NK/ -o outdir_NK --max_epochs 15 --nrun 10 --train_perc 0.6 --ncell_pooled 5 10 --plot --export_csv --group_a CMV- --group_b CMV+``
 
-The above command performs a binary classification CellCnn analysis, exports the learned filter weights as CSV files in the directory ``outdir_NK/csv_results`` and generates some result plots in ``outdir_NK/plots``. To
-refine the plots with different cutoff values for the selected filters and cell populations, you can load the pre-trained model results with the option ``--load_results``:
+The above command performs a binary classification CellCnn analysis, exports the learned filter weights as CSV files in the directory ``outdir_NK/csv_results`` and generates some result plots in ``outdir_NK/plots``. After
+performing model training once, to refine the plots with different cutoff values for the selected filters and
+cell populations, you can load the pre-computed results with the option ``--load_results``:
 
 ``python ../run_analysis.py -f NK_fcs_samples_with_labels.csv -m NK_markers.csv -i NK_cell_dataset/gated_NK/ -o outdir_NK --plot --group_a CMV- --group_b CMV+ --filter_response_thres 0.3 --load_results``
 
@@ -64,4 +65,4 @@ refine the plots with different cutoff values for the selected filters and cell 
 Documentation
 =============
 
-CellCnn's documentation is hosted on http://eiriniar.github.io/CellCnn/
+For additional information, CellCnn's documentation is hosted on http://eiriniar.github.io/CellCnn/
