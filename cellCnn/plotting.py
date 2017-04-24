@@ -198,7 +198,7 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
             bx = np.array(a[0].get_xdata())[::-1]
             b_diff_idx = np.where(by[:-1] - by[1:] >= response_grad_cutoff)[0]
             if len(b_diff_idx) > 0:
-                t = bx[b_diff_idx[0]]
+                t = bx[b_diff_idx[0]+1]
         plt.plot((t, t), (np.min(gy), 1.), 'r--')
         sns.despine()
         plt.savefig(os.path.join(outdir, 'cdf_filter_%d.pdf' % i_filter), format='pdf')
