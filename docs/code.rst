@@ -13,4 +13,4 @@ plotting
 ========
 
 .. automodule:: cellCnn.plotting
-   :members: plot_results_2class
+   :members: plot_results
