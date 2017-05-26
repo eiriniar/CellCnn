@@ -1,12 +1,16 @@
 
-""" This module contains utility functions. """
+""" Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
+
+This module contains utility functions.
+
+"""
 
 import os
 import errno
-import cPickle as pickle
 from collections import Counter
 import numpy as np
 import pandas as pd
+import copy
 from cellCnn.downsample import random_subsample, kmeans_subsample, outlier_subsample
 from cellCnn.downsample import weighted_subsample
 import sklearn.utils as sku
@@ -44,20 +48,18 @@ def get_data(indir, info, marker_names, do_arcsinh, cofactor):
         sample_list.append(x)
     return sample_list, list(phenotypes)
 
-def save_results(results, outdir, labels, export_csv):
-    pickle.dump(results, open(os.path.join(outdir, 'results.pkl'), 'w'))
-    if export_csv:
-        csv_dir = os.path.join(outdir, 'csv_results')
-        mkdir_p(csv_dir)
-        w = pd.DataFrame(results['w_best_net'], 
-                         columns=labels+['constant', 'out0', 'out1'])
-        w.to_csv(os.path.join(csv_dir, 'filters_best_net.csv'), index=False)
-        w = pd.DataFrame(results['selected_filters'], 
-                         columns=labels+['constant', 'out0', 'out1'])
-        w.to_csv(os.path.join(csv_dir, 'filters_consensus.csv'), index=False)
-        w = pd.DataFrame(results['clustering_result']['w'], 
-                         columns=labels+['constant', 'out0', 'out1'])
-        w.to_csv(os.path.join(csv_dir, 'filters_all.csv'), index=False)
+def save_results(results, outdir, labels):
+    csv_dir = os.path.join(outdir, 'csv_results')
+    mkdir_p(csv_dir)
+    nmark = len(labels)
+    nc = results['w_best_net'].shape[1] - (nmark+1)
+    labels_ = labels + ['constant'] + ['out %d' % i for i in range(nc)]
+    w = pd.DataFrame(results['w_best_net'], columns=labels_)
+    w.to_csv(os.path.join(csv_dir, 'filters_best_net.csv'), index=False)
+    w = pd.DataFrame(results['selected_filters'], columns=labels_)
+    w.to_csv(os.path.join(csv_dir, 'filters_consensus.csv'), index=False)
+    w = pd.DataFrame(results['clustering_result']['w'], columns=labels_)
+    w.to_csv(os.path.join(csv_dir, 'filters_all.csv'), index=False)
 
 def get_items(l, idx):
     return [l[i] for i in idx]
@@ -101,8 +103,8 @@ def cluster_tightness(data, metric='cosine'):
     centroid = np.mean(data, axis=0).reshape(1, -1)
     return np.mean(pairwise_kernels(data, centroid, metric=metric))
 
-def cluster_profiles(param_dict, accuracies, accur_thres=.99,
-                     regression=False, dendrogram_cutoff=.5):
+def cluster_profiles(param_dict, nmark, accuracies, accur_thres=.99,
+                     dendrogram_cutoff=.5):
     accum = []
     # if not at least 3 models reach the accuracy threshold, select the filters from the 3 best
     if np.sort(accuracies)[-3] < accur_thres:
@@ -116,23 +118,19 @@ def cluster_profiles(param_dict, accuracies, accur_thres=.99,
     w_strong = np.vstack(accum)
 
     # perform hierarchical clustering on cosine distances
-    if w_strong.shape[0] > 1:
-        Z = linkage(w_strong[:, :-2], 'average', metric='cosine')
-        clusters = fcluster(Z, dendrogram_cutoff, criterion='distance') - 1
-        c = Counter(clusters)
-        cons = []
-        for key, val in c.items():
-            if val > 1:
-                members = w_strong[clusters == key]
-                cons.append(representative(members, stop=-2))
-        if cons != []:
-            cons_profile = np.vstack(cons)
-        else:
-            cons_profile = None
-        cl_res = {'w': w_strong, 'cluster_linkage': Z, 'cluster_assignments': clusters}
+    Z = linkage(w_strong[:, :nmark+1], 'average', metric='cosine')
+    clusters = fcluster(Z, dendrogram_cutoff, criterion='distance') - 1
+    c = Counter(clusters)
+    cons = []
+    for key, val in c.items():
+        if val > 1:
+            members = w_strong[clusters == key]
+            cons.append(representative(members, stop=nmark+1))
+    if cons != []:
+        cons_profile = np.vstack(cons)
     else:
-        cons_profile = np.squeeze(w_strong)
-        cl_res = None
+        cons_profile = None
+    cl_res = {'w': w_strong, 'cluster_linkage': Z, 'cluster_assignments': clusters}
     return cons_profile, cl_res
 
 def normalize_outliers(X, lq=.5, hq=99.5, stop=None):
@@ -243,46 +241,48 @@ def generate_biased_subsets(X, pheno_map, sample_id, x_ctrl, nsubset_ctrl, nsubs
     Xt, yt = sku.shuffle(Xt, yt)
     return Xt, yt
 
-def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes, ntop):
-
+def single_filter_output(filter_params, valid_samples, mp):
+    y_pred = np.zeros(len(valid_samples))
     nmark = valid_samples[0].shape[1]
-    n_classes = len(np.unique(valid_phenotypes))
-    d = np.zeros((len(filters), n_classes))
+    w, b = filter_params[:nmark], filter_params[nmark]
+    w_out = filter_params[nmark+1:]
 
-    for i in range(n_classes):
-        x0 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y != i])
-        if scaler is not None:
-            x0 = scaler.transform(x0.copy())
+    for i, x in enumerate(valid_samples):
+        g = relu(np.sum(w.reshape(1, -1) * x, axis=1) + b)
+        ntop = max(1, int(mp/100. * x.shape[0]))
+        gpool = np.mean(np.sort(g)[-ntop:])
+        y_pred[i] = gpool
+    return y_pred, np.argmax(w_out)
 
-        x1 = np.vstack([x for x, y in zip(valid_samples, valid_phenotypes) if y == i])
-        if scaler is not None:
-            x1 = scaler.transform(x1.copy())
 
-        for ii, foo in enumerate(filters):
-            # if this filter has highest weight connection to the class of interest
-            if np.argmax(foo[nmark+1:]) == i:
-                w, b = foo[:nmark], foo[nmark]
-                g0 = relu(np.sum(w.reshape(1, -1) * x0, axis=1) + b)
-                g1 = relu(np.sum(w.reshape(1, -1) * x1, axis=1) + b)
-                d[ii, i] = np.sum(np.sort(g1)[-ntop:]) - np.sum(np.sort(g0)[-ntop:])
-    return d
+def get_filters_classification(filters, scaler, valid_samples, valid_phenotypes, mp):
+    y_true = np.array(valid_phenotypes)
+    filter_diff = np.zeros(len(filters))
 
-def get_filters_regression(filters, scaler, valid_samples, valid_phenotypes):
-    nmark = valid_samples[0].shape[1]
-    nsample = len(valid_samples)
-    tau = np.zeros((len(filters), 1))
+    if scaler is not None:
+        valid_samples = copy.deepcopy(valid_samples)
+        valid_samples = [scaler.transform(x) for x in valid_samples]
 
-    for ii, foo in enumerate(filters):
-        w, b, w_out = foo[:nmark], foo[nmark], foo[-1]
+    for i, filter_params in enumerate(filters):
+        y_pred, filter_class = single_filter_output(filter_params, valid_samples, mp)
+        filter_diff[i] = np.mean(y_pred[y_true == filter_class]) -\
+                         np.mean(y_pred[y_true != filter_class])
+    return filter_diff
 
-        y_pred = np.zeros(nsample)
-        for jj, x in enumerate(valid_samples):
-            if scaler is not None:
-                x = scaler.transform(x.copy())
-            y_pred[jj] = w_out * np.mean(relu(np.sum(w.reshape(1, -1) * x, axis=1) + b))
-        # compute Kendall's tau for filter ii
-        tau[ii, 0] = stats.kendalltau(y_pred, np.array(valid_phenotypes))[0]
-    return tau
+def get_filters_regression(filters, scaler, valid_samples, valid_phenotypes, mp):
+    y_true = np.array(valid_phenotypes)
+    filter_tau = np.zeros(len(filters))
+
+    if scaler is not None:
+        valid_samples = copy.deepcopy(valid_samples)
+        valid_samples = [scaler.transform(x) for x in valid_samples]
+
+    for i, filter_params in enumerate(filters):
+        y_pred, _dummy = single_filter_output(filter_params, valid_samples, mp)
+        # compute Kendall's tau for filter i
+        w_out = filter_params[-1]
+        filter_tau[i] = stats.kendalltau(y_true, w_out * y_pred)[0]
+    return filter_tau
 
 def get_selected_cells(filter_w, data, scaler=None, filter_response_thres=0,
                        export_continuous=False):

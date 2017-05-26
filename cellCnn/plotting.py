@@ -1,7 +1,12 @@
 
-""" This module contains functions for plotting the results of a CellCnn analysis. """
+""" Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
+
+This module contains functions for plotting the results of a CellCnn analysis.
+
+"""
 
 import os
+import sys
 from collections import Counter
 import numpy as np
 import pandas as pd
@@ -23,15 +28,15 @@ except ImportError:
     pass
 
 
-def plot_results_2class(results, samples, phenotypes, labels, outdir,
-                        percentage_drop_filter=.2, filter_response_thres=0,
-                        response_grad_cutoff=None, group_a='group a', group_b='group b',
-                        stat_test=None, positive_filters_only=False, log_yscale=False,
-                        clustering=None, add_filter_response=False,
-                        percentage_drop_cluster=.1, min_cluster_freq=0.2,
-                        plot_tsne=False, tsne_ncell=3000):
+def plot_results(results, samples, phenotypes, labels, outdir,
+                 filter_diff_thres=.2, filter_response_thres=0, response_grad_cutoff=None,
+                 stat_test=None, positive_filters_only=False, log_yscale=False,
+                 group_a='group A', group_b='group B',
+                 clustering=None, add_filter_response=False,
+                 percentage_drop_cluster=.1, min_cluster_freq=0.2,
+                 plot_tsne=False, tsne_ncell=3000):
 
-    """ Plots the results of a CellCnn analysis for a 2-class classification problem.
+    """ Plots the results of a CellCnn analysis.
 
     Args:
         - results :
@@ -44,24 +49,27 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
             Names of measured markers.
         - outdir :
             Output directory where the generated plots will be stored.
-        - percentage_drop_filter :
-            Threshold that defines which filters are most discriminative. Given an array ``diff``
-            of cell filter response differences sorted in decreasing order, keep a filter
-            ``i, i >= 0`` if it holds that
-            ``diff[i-1] - diff[i] < percentage_drop_filter * diff[i-1]``.
+        - filter_diff_thres :
+            Threshold that defines which filters are most discriminative. Given an array
+            ``filter_diff`` of average cell filter response differences between classes,
+            sorted in decreasing order, keep a filter ``i, i > 0`` if it holds that
+            ``filter_diff[i-1] - filter_diff[i] < filter_diff_thres * filter_diff[i-1]``.
+            For regression problems, the array ``filter_diff`` contains Kendall's tau
+            values for each filter.
         - filter_response_thres :
             Threshold for choosing a responding cell population. Default is 0.
         - response_grad_cutoff :
             Threshold on the gradient of the cell filter response CDF, might be useful for defining
             the selected cell population.
+        - stat_test: None | 'ttest' | 'mannwhitneyu'
+            Optionally, perform a statistical test on selected cell population frequencies between
+            two groups and report the corresponding p-value on the boxplot figure
+            (see plots description below). Default is None. Currently only used for binary
+            classification problems.
         - group_a :
             Name of the first class.
         - group_b :
             Name of the second class.
-        - stat_test: None | 'ttest' | 'mannwhitneyu'
-            Optionally, perform a statistical test on selected cell population frequencies between
-            the two groups and report the corresponding p-value on the boxplot figure
-            (see plots description below). Default is None.
         - positive_filters_only :
             If True, only consider filters associated with higher cell population frequency in the
             positive class.
@@ -80,8 +88,8 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
         - clustered_filter_weights.pdf :
             Filter weight vectors from all trained networks that pass a validation accuracy
             threshold, grouped in clusters via hierarchical clustering. Each row corresponds to
-            a filter. The last column indicates the weight connecting each filter to the output
-            positive class. Indices on the y-axis indicate the filter cluster memberships, as a
+            a filter. The last column(s) indicate the weight(s) connecting each filter to the output
+            class(es). Indices on the y-axis indicate the filter cluster memberships, as a
             result of the hierarchical clustering procedure.
         - consensus_filter_weights.pdf :
             One representative filter per cluster is chosen (the filter with minimum distance to all
@@ -89,8 +97,17 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
         - best_net_weights.pdf :
             Filter weight vectors of the network that achieved the highest validation accuracy.
         - filter_response_differences.pdf :
-            Difference in cell filter response between the two classes for each consensus filter.
-            This plot helps decide on a cutoff (``percentage_drop_filter`` parameter) for selecting
+            Difference in cell filter response between classes for each consensus filter.
+            To compute this difference for a filter, we first choose a filter-specific class, that's
+            the class with highest output weight connection to the filter. Then we compute the
+            average cell filter response (value after the pooling layer) for validation samples
+            belonging to the filter-specific class (``v1``) and the average cell filter response
+            for validation samples not belonging to the filter-specific class (``v0``).
+            The difference is computed as ``v1 - v0``. For regression problems, we cannot compute
+            a difference between classes. Instead we compute Kendall's rank correlation coefficient
+            between the predictions of each individual filter (value after the pooling layer) and
+            the true response valuees.
+            This plot helps decide on a cutoff (``filter_diff_thres`` parameter) for selecting
             discriminative filters.
 
         In addition, the following plots are produced for each selected filter (e.g. filter ``i``):
@@ -105,7 +122,8 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
             filter ``i`` vs all cells.
 
         - selected_population_boxplot_filter_i.pdf :
-            Boxplot of selected cell population frequencies in samples of the two classes.
+            Boxplot of selected cell population frequencies in samples of the different classes.
+            Currently only plotted for binary classification problems.
     """
 
     # create the output directory
@@ -115,55 +133,85 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
     nmark = samples[0].shape[1]
 
     # plot the filter weights of the best network
-    w_best = results['w_best_net'][:, range(nmark)+[-1]]
+    w_best = results['w_best_net']
+    idx_except_bias = np.array(range(nmark) + range(nmark+1, w_best.shape[1]))
+    nc = w_best.shape[1] - (nmark+1)
+    labels_except_bias = labels + ['out %d' % i for i in range(nc)]
+    w_best = w_best[:, idx_except_bias]
     fig_path = os.path.join(outdir, 'best_net_weights.pdf')
-    plot_nn_weights(w_best, labels+['output'], fig_path, fig_size=(10, 10))
+    plot_nn_weights(w_best, labels_except_bias, fig_path, fig_size=(10, 10))
 
     # plot the selected filters
     if results['selected_filters'] is not None:
         print 'Loading the weights of consensus filters.'
-        w = results['selected_filters'][:, range(nmark)+[-1]]
+        w = results['selected_filters'][:, idx_except_bias]
         fig_path = os.path.join(outdir, 'consensus_filter_weights.pdf')
-        plot_nn_weights(w, labels+['output'], fig_path, fig_size=(10, 10))
+        plot_nn_weights(w, labels_except_bias, fig_path, fig_size=(10, 10))
         filters = results['selected_filters']
     else:
-        print 'Consensus filters were not found, using the weights of the best network instead.'
-        filters = results['w_best_net']
+        sys.exit('Consensus filters were not found.')
 
     # plot the filter clustering
     cl = results['clustering_result']
-    cl_w = cl['w'][:, range(nmark)+[-1]]
+    cl_w = cl['w'][:, idx_except_bias]
     fig_path = os.path.join(outdir, 'clustered_filter_weights.pdf')
-    plot_nn_weights(cl_w, labels+['output'], fig_path, row_linkage=cl['cluster_linkage'],
+    plot_nn_weights(cl_w, labels_except_bias, fig_path, row_linkage=cl['cluster_linkage'],
                     y_labels=cl['cluster_assignments'], fig_size=(10, 10))
 
     # select the discriminative filters based on the validation set
-    if 'dist' in results:
-        dist = results['dist']
-        dist = np.max(dist, axis=1)
-    # if no validation set was provided,
-    # select filters based on the magnitude of their output weight
+    if 'filter_diff' in results:
+        filter_diff = results['filter_diff']
+
+        # do we want to consider negative filters?
+        if positive_filters_only:
+            filter_diff = filter_diff * np.sign(filters[:, -1])
+        sorted_idx = np.argsort(filter_diff)[::-1]
+        filter_diff = filter_diff[sorted_idx]
+        keep_idx = [sorted_idx[0]]
+        for i in range(0, len(filter_diff)-1):
+            if (filter_diff[i] - filter_diff[i+1]) < filter_diff_thres * filter_diff[i]:
+                keep_idx.append(sorted_idx[i+1])
+            else:
+                break
+        plt.figure()
+        sns.set_style('whitegrid')
+        plt.plot(range(len(filter_diff)), filter_diff, '--')
+        plt.xticks(range(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
+                   rotation='vertical')
+        plt.ylabel('average cell filter response difference between classes')
+        sns.despine()
+        plt.savefig(os.path.join(outdir, 'filter_response_differences.pdf'), format='pdf')
+        plt.clf()
+        plt.close()
+
+    elif 'filter_tau' in results:
+        filter_diff = results['filter_tau']
+
+        # do we want to consider negative filters?
+        if positive_filters_only:
+            filter_diff = filter_diff * np.sign(filters[:, -1])
+        sorted_idx = np.argsort(filter_diff)[::-1]
+        filter_diff = filter_diff[sorted_idx]
+        keep_idx = [sorted_idx[0]]
+        for i in range(0, len(filter_diff)-1):
+            if (filter_diff[i] - filter_diff[i+1]) < filter_diff_thres * filter_diff[i]:
+                keep_idx.append(sorted_idx[i+1])
+            else:
+                break
+        plt.figure()
+        sns.set_style('whitegrid')
+        plt.plot(range(len(filter_diff)), filter_diff, '--')
+        plt.xticks(range(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
+                   rotation='vertical')
+        plt.ylabel('Kendalls tau')
+        sns.despine()
+        plt.savefig(os.path.join(outdir, 'filter_response_Kendall_tau.pdf'), format='pdf')
+        plt.clf()
+        plt.close()
+
+    # if no validation samples were provided, keep all consensus filters
     else:
-        dist = abs(filters[:, -1])
-    # do we want to consider negative filters?
-    if positive_filters_only:
-        dist = dist * np.sign(filters[:, -1])
-    sorted_idx = np.argsort(dist)[::-1]
-    dist = dist[sorted_idx]
-    keep_idx = [sorted_idx[0]]
-    for i in range(1, dist.shape[0]):
-        if (dist[i-1] - dist[i]) < percentage_drop_filter * dist[i-1]:
-            keep_idx.append(sorted_idx[i])
-        else:
-            break
-    plt.figure()
-    sns.set_style('whitegrid')
-    plt.plot(range(len(dist)), dist, '--')
-    plt.xticks(range(len(dist)), ['filter %d' % i for i in sorted_idx], rotation='vertical')
-    sns.despine()
-    plt.savefig(os.path.join(outdir, 'filter_response_differences.pdf'), format='pdf')
-    plt.clf()
-    plt.close()
+        keep_idx = range(filters.shape[0]) 
 
     # encode the sample and sample-phenotype for each cell
     sample_sizes = []
@@ -200,6 +248,8 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
             if len(b_diff_idx) > 0:
                 t = bx[b_diff_idx[0]+1]
         plt.plot((t, t), (np.min(gy), 1.), 'r--')
+        plt.xlabel('Cell filter response')
+        plt.ylabel('Cumulative distribution function (CDF)')
         sns.despine()
         plt.savefig(os.path.join(outdir, 'cdf_filter_%d.pdf' % i_filter), format='pdf')
         plt.clf()
@@ -227,7 +277,8 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
         if clustering is None:
             suffix = 'filter_%d' % i_filter
             plot_selected_subset(x1, z1, x, labels, sample_sizes, phenotypes,
-                                 outdir, suffix, stat_test, group_a, group_b, log_yscale)
+                                 outdir, suffix, stat_test, log_yscale,
+                                 group_a, group_b)
         else:
             if clustering == 'louvain':
                 print 'Creating a k-NN graph with %d/%d cells...' % (x1.shape[0], x.shape[0])
@@ -272,8 +323,8 @@ def plot_results_2class(results, samples, phenotypes, labels, outdir,
                 zc = z1[clusters == cl_id]
                 suffix = 'filter_%d_cluster_%d' % (i_filter, cl_id)
                 plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes,
-                                     outdir, suffix, stat_test, group_a, group_b, log_yscale)
-    print 'Found %d discriminative filter(s): ' % len(return_filters), zip(*return_filters)[0]
+                                     outdir, suffix, stat_test, log_yscale,
+                                     group_a, group_b)
     return return_filters
 
 def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_size=(10, 3)):
@@ -292,7 +343,8 @@ def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_
     plt.close()
 
 def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, suffix,
-                         stat_test, group_a, group_b, log_yscale=False):
+                         stat_test=None, log_yscale=False,
+                         group_a='group A', group_b='group B'):
     ks_list = []
     nmark = x.shape[1]
     for j in range(nmark):
@@ -304,49 +356,50 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
                              labels, grid_size=(4, 9), ks_list=ks_list, figsize=(24, 10),
                              colors=['blue', 'red'], fig_path=fig_path, hist=True)
 
-    # additionally, plot a boxplot of per class frequencies
-    freq_a, freq_b = [], []
-    for i, (n, y_i) in enumerate(zip(sample_sizes, phenotypes)):
-        freq = 100. * np.sum(zc == i) / n
-        assert freq <= 100
-        if y_i == 0:
-            freq_a.append(freq)
+    # for binary classification, plot a boxplot of per class frequencies
+    if len(np.unique(phenotypes)) == 2:
+        freq_a, freq_b = [], []
+        for i, (n, y_i) in enumerate(zip(sample_sizes, phenotypes)):
+            freq = 100. * np.sum(zc == i) / n
+            assert freq <= 100
+            if y_i == 0:
+                freq_a.append(freq)
+            else:
+                freq_b.append(freq)
+        # perform a statistical test
+        if stat_test is None:
+            pval = None
+        elif stat_test == 'mannwhitneyu':
+            _t, pval = stats.mannwhitneyu(freq_a, freq_b)
+        elif stat_test == 'ttest':
+            _t, pval = stats.ttest_ind(freq_a, freq_b)
         else:
-            freq_b.append(freq)
-    # perform a statistical test
-    if stat_test is None:
-        pval = None
-    elif stat_test == 'mannwhitneyu':
-        _t, pval = stats.mannwhitneyu(freq_a, freq_b)
-    elif stat_test == 'ttest':
-        _t, pval = stats.ttest_ind(freq_a, freq_b)
-    else:
-        _t, pval = stats.ttest_ind(freq_a, freq_b)
+            _t, pval = stats.ttest_ind(freq_a, freq_b)
 
-    # make a boxplot with error bars
-    box_grade = [group_a] * len(freq_a) + [group_b] * len(freq_b)
-    box_data = np.hstack([freq_a, freq_b])
-    box = pd.DataFrame(np.array(zip(box_grade, box_data)),
-                       columns=['group', 'selected population frequency (%)'])
-    box['selected population frequency (%)'] = \
-        box['selected population frequency (%)'].astype('float64')
+        # make a boxplot with error bars
+        box_grade = [group_a] * len(freq_a) + [group_b] * len(freq_b)
+        box_data = np.hstack([freq_a, freq_b])
+        box = pd.DataFrame(np.array(zip(box_grade, box_data)),
+                           columns=['group', 'selected population frequency (%)'])
+        box['selected population frequency (%)'] = \
+            box['selected population frequency (%)'].astype('float64')
 
-    _fig, ax = plt.subplots(figsize=(2.5, 2.5))
-    ax = sns.boxplot(x="group", y="selected population frequency (%)", data=box, width=.5,
-                     palette=sns.color_palette('Set2'))
-    ax = sns.swarmplot(x="group", y="selected population frequency (%)", data=box, color=".25")
-    if stat_test is not None:
-        ax.text(.45, 1.1, '%s pval = %.2e' % (stat_test, pval), horizontalalignment='center',
-                transform=ax.transAxes, size=8, weight='bold')
-    if log_yscale:
-        ax.set_yscale('log')
-    plt.ylim(0, np.max(freq_a + freq_b) + 1)
-    sns.despine()
-    plt.tight_layout()
-    fig_path = os.path.join(outdir, 'selected_population_boxplot_%s.pdf' % suffix)
-    plt.savefig(fig_path)
-    plt.clf()
-    plt.close()
+        _fig, ax = plt.subplots(figsize=(2.5, 2.5))
+        ax = sns.boxplot(x="group", y="selected population frequency (%)", data=box, width=.5,
+                         palette=sns.color_palette('Set2'))
+        ax = sns.swarmplot(x="group", y="selected population frequency (%)", data=box, color=".25")
+        if stat_test is not None:
+            ax.text(.45, 1.1, '%s pval = %.2e' % (stat_test, pval), horizontalalignment='center',
+                    transform=ax.transAxes, size=8, weight='bold')
+        if log_yscale:
+            ax.set_yscale('log')
+        plt.ylim(0, np.max(freq_a + freq_b) + 1)
+        sns.despine()
+        plt.tight_layout()
+        fig_path = os.path.join(outdir, 'selected_population_boxplot_%s.pdf' % suffix)
+        plt.savefig(fig_path)
+        plt.clf()
+        plt.close()
 
 def plot_marker_distribution(datalist, namelist, labels, grid_size, fig_path=None, letter_size=16,
                              figsize=(9, 9), ks_list=None, colors=None, hist=False):

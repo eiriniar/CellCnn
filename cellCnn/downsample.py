@@ -1,5 +1,9 @@
 
-""" This module contains functions for downsampling. """
+""" Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
+
+This module contains functions for downsampling.
+
+"""
 
 import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances

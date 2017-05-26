@@ -1,5 +1,9 @@
 
-""" This module contains utility functions for defining a neural network """
+""" Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
+
+This module contains utility functions for defining a neural network.
+
+"""
 
 import numpy as np
 import theano.tensor as T

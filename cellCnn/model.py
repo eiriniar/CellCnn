@@ -1,5 +1,9 @@
 
-""" This module contains functions for performing a CellCnn analysis. """
+""" Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
+
+This module contains functions for performing a CellCnn analysis.
+
+"""
 
 import sys
 import os
@@ -18,7 +22,6 @@ from cellCnn.theano_utils import select_top, float32, int32, activity_KL
 
 from keras.layers import Input, Dense, Lambda, Activation, Dropout
 from keras.layers.convolutional import Convolution1D
-from keras.layers.noise import GaussianNoise
 from keras.models import Model
 from keras.optimizers import Adam
 from keras.regularizers import l1l2
@@ -38,19 +41,23 @@ class CellCnn(object):
             `per_sample` = `False`. Total number of multi-cell inputs that will be generated from
             each input sample, if `per_sample` = `True`.
         - per_sample :
-            Whether the nsubset argument refers to each class or each input sample.
+            Whether the `nsubset` argument refers to each class or each input sample.
             For regression problems, it is automatically set to `True`.
         - subset_selection :
             Can be 'random' or 'outlier'. Generate multi-cell inputs uniformly at
             random or biased towards outliers. The latter option is only relevant for detection of
             extremely rare (frequency < 0.1%) cell populations.
-        - ncell_pooled :
-            A list specifying candidate numbers of cells that will be max-pooled per
-            filter. For mean pooling, set `ncell_pooled` = `[ncell]`.
+        - maxpool_percentages :
+            A list specifying candidate percentages of cells that will be max-pooled per
+            filter. For instance, mean pooling corresponds to `maxpool_percentages` = `[100]`.
         - nfilter_choice :
             A list specifying candidate numbers of filters for the neural network.
         - scale :
-            Whetherh to z-transform each feature (mean=0, std=1) prior to training.
+            Whether to z-transform each feature (mean = 0, standard deviation = 1) prior to
+            training.
+        - quant_normed :
+            Whether the input samples have already been pre-processed with quantile
+            normalization. In this case, each feature is zero-centered by subtracting 0.5.
         - nrun :
             Number of neural network configurations to try (should be set >= 3).
         - regression :
@@ -70,8 +77,6 @@ class CellCnn(object):
             Coefficient for L2 weight regularization.
         - coeff_activity :
             Coefficient for regularizing the activity at each filter.
-        - noisy_input :
-            If `True`, a Gaussian noise layer is added after the input layer.
         - max_epochs :
             Maximum number of iterations through the data.
         - patience :
@@ -87,21 +92,22 @@ class CellCnn(object):
     """
 
     def __init__(self, ncell=200, nsubset=1000, per_sample=False, subset_selection='random',
-                 ncell_pooled=[1, 5, 10, 20], nfilter_choice=range(3, 10),
-                 scale=True, nrun=10, regression=False,
-                 learning_rate=None, coeff_l1=0, coeff_l2=0.0001, dropout='auto', dropout_p=.5,
-                 noisy_input=False, coeff_activity=0, max_epochs=50, patience=5,
-                 dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
+                 maxpool_percentages=[0.01, 1., 5., 20., 100.], scale=True, quant_normed=False,
+                 nfilter_choice=range(3, 10), dropout='auto', dropout_p=.5,
+                 coeff_l1=0, coeff_l2=0.0001, coeff_activity=0, learning_rate=None,
+                 regression=False, max_epochs=20, patience=5, nrun=15, dendrogram_cutoff=0.4,
+                 accur_thres=.95, verbose=1):
 
         # initialize model attributes
         self.scale = scale
+        self.quant_normed = quant_normed
         self.nrun = nrun
         self.regression = regression
         self.ncell = ncell
         self.nsubset = nsubset
         self.per_sample = per_sample
         self.subset_selection = subset_selection
-        self.ncell_pooled = ncell_pooled
+        self.maxpool_percentages = maxpool_percentages
         self.nfilter_choice = nfilter_choice
         self.learning_rate = learning_rate
         self.coeff_l1 = coeff_l1
@@ -109,7 +115,6 @@ class CellCnn(object):
         self.coeff_activity = coeff_activity
         self.dropout = dropout
         self.dropout_p = dropout_p
-        self.noisy_input = noisy_input
         self.max_epochs = max_epochs
         self.patience = patience
         self.dendrogram_cutoff = dendrogram_cutoff
@@ -159,10 +164,11 @@ class CellCnn(object):
                           scale=self.scale, nrun=self.nrun, regression=self.regression,
                           ncell=self.ncell, nsubset=self.nsubset, per_sample=self.per_sample,
                           subset_selection=self.subset_selection,
-                          ncell_pooled=self.ncell_pooled, nfilter_choice=self.nfilter_choice,
+                          maxpool_percentages=self.maxpool_percentages,
+                          nfilter_choice=self.nfilter_choice,
                           learning_rate=self.learning_rate,
-                          coeff_l1=self.coeff_l1, coeff_l2=self.coeff_l2, dropout=self.dropout,
-                          dropout_p=self.dropout_p, noisy_input=self.noisy_input,
+                          coeff_l1=self.coeff_l1, coeff_l2=self.coeff_l2,
+                          dropout=self.dropout, dropout_p=self.dropout_p,
                           coeff_activity=self.coeff_activity, max_epochs=self.max_epochs,
                           patience=self.patience, dendrogram_cutoff=self.dendrogram_cutoff,
                           accur_thres=self.accur_thres, verbose=self.verbose)
@@ -205,13 +211,12 @@ class CellCnn(object):
 
         y_pred = np.zeros((3, len(new_samples), n_classes))
         for i_enum, i in enumerate(sorted_idx):
-            k = config['ncell_pooled'][i]
             nfilter = config['nfilter'][i]
-            maxpool_percentage = 1. * k / self.ncell
-            ncell_pooled = max(1, int(maxpool_percentage * ncell_per_sample))
+            maxpool_percentage = config['maxpool_percentage'][i]
+            ncell_pooled = max(1, int(maxpool_percentage/100. * ncell_per_sample))
 
             # build the model architecture
-            model = build_model(ncell_per_sample, nmark, noisy_input=self.noisy_input, sigma=0,
+            model = build_model(ncell_per_sample, nmark,
                                 nfilter=nfilter, coeff_l1=0, coeff_l2=0, coeff_activity=0,
                                 k=ncell_pooled, dropout=False, dropout_p=0,
                                 regression=self.regression, n_classes=n_classes, lr=0.01)
@@ -225,21 +230,24 @@ class CellCnn(object):
                            for x in new_samples]
             data_test = np.vstack(new_samples)
             y_pred[i_enum] = model.predict(data_test)
-
         return np.mean(y_pred, axis=0)
 
 
 def train_model(train_samples, train_phenotypes, outdir,
                 valid_samples=None, valid_phenotypes=None, generate_valid_set=True,
-                scale=True, nrun=10, regression=False,
-                ncell=500, nsubset=4000, per_sample=False, subset_selection='random',
-                ncell_pooled=[1, 3, 5], nfilter_choice=[3, 4, 5, 10],
+                scale=True, quant_normed=False, nrun=20, regression=False,
+                ncell=200, nsubset=1000, per_sample=False, subset_selection='random',
+                maxpool_percentages=[0.01, 1., 5., 20., 100.], nfilter_choice=range(3, 10),
                 learning_rate=None, coeff_l1=0, coeff_l2=1e-4, dropout='auto', dropout_p=.5,
-                noisy_input=False, coeff_activity=0, max_epochs=50, patience=10,
+                coeff_activity=0, max_epochs=20, patience=5,
                 dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
 
     """ Performs a CellCnn analysis """
     mkdir_p(outdir)
+
+    if nrun < 3:
+        print 'The nrun argument should be >= 3, setting it to 3.'
+        nrun = 3
 
     # copy the list of samples so that they are not modified in place
     train_samples = copy.deepcopy(train_samples)
@@ -284,8 +292,12 @@ def train_model(train_samples, train_phenotypes, outdir,
         sample_ids = range(len(valid_phenotypes))
         X_valid, id_valid = combine_samples(valid_samples, sample_ids)
 
-    if scale:
-        z_scaler = StandardScaler()
+    if quant_normed:
+        z_scaler = StandardScaler(with_mean=True, with_std=False)
+        z_scaler.fit(0.5 * np.ones((1, X_train.shape[1])))
+        X_train = z_scaler.transform(X_train)
+    elif scale:
+        z_scaler = StandardScaler(with_mean=True, with_std=True)
         z_scaler.fit(X_train)
         X_train = z_scaler.transform(X_train)
     else:
@@ -392,26 +404,21 @@ def train_model(train_samples, train_phenotypes, outdir,
 
     if not regression:
         n_classes = len(np.unique(train_phenotypes))
-        y_tr = to_categorical(y_tr)
-        y_v = to_categorical(y_v)
+        y_tr = to_categorical(y_tr, n_classes)
+        y_v = to_categorical(y_v, n_classes)
 
     # train some neural networks with different parameter configurations
     accuracies = np.zeros(nrun)
     w_store = dict()
     config = dict()
-    config['sigma'] = []
     config['nfilter'] = []
     config['learning_rate'] = []
-    config['ncell_pooled'] = []
+    config['maxpool_percentage'] = []
     lr = learning_rate
-    sigma = 0
 
     for irun in range(nrun):
         if verbose:
             print 'training network: %d' % (irun + 1)
-        if noisy_input:
-            sigma = 10 ** np.random.uniform(-2, -1)
-            config['sigma'].append(sigma)
         if learning_rate is None:
             lr = 10 ** np.random.uniform(-3, -2)
             config['learning_rate'].append(lr)
@@ -422,12 +429,13 @@ def train_model(train_samples, train_phenotypes, outdir,
         print 'Number of filters: %d' % nfilter
 
         # choose number of cells pooled for this run
-        k = np.random.choice(ncell_pooled)
-        config['ncell_pooled'].append(k)
+        mp = maxpool_percentages[irun % len(maxpool_percentages)]
+        config['maxpool_percentage'].append(mp)
+        k = max(1, int(mp/100. * ncell))
         print 'Cells pooled: %d' % k
 
         # build the neural network
-        model = build_model(ncell, nmark, noisy_input, sigma, nfilter,
+        model = build_model(ncell, nmark, nfilter,
                             coeff_l1, coeff_l2, coeff_activity, k,
                             dropout, dropout_p, regression, n_classes, lr)
 
@@ -439,14 +447,14 @@ def train_model(train_samples, train_phenotypes, outdir,
                 earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
                 model.fit(float32(X_tr), int32(y_tr),
                           nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
-                          validation_data=(float32(X_v), int32(y_v)))
+                          validation_data=(float32(X_v), int32(y_v)), verbose=verbose)
             else:
                 check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True,
                                         mode='auto')
                 earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
                 model.fit(float32(X_tr), float32(y_tr),
                           nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
-                          validation_data=(float32(X_v), float32(y_v)))
+                          validation_data=(float32(X_v), float32(y_v)), verbose=verbose)
 
             # load the model from the epoch with highest validation accuracy
             model.load_weights(filepath)
@@ -481,7 +489,7 @@ def train_model(train_samples, train_phenotypes, outdir,
 
     # post-process the learned filters
     # cluster weights from all networks that achieved accuracy above the specified thershold
-    w_cons, cluster_res = cluster_profiles(w_store, accuracies, accur_thres, regression,
+    w_cons, cluster_res = cluster_profiles(w_store, nmark, accuracies, accur_thres,
                                            dendrogram_cutoff=dendrogram_cutoff)
     results = {
         'clustering_result': cluster_res,
@@ -497,20 +505,19 @@ def train_model(train_samples, train_phenotypes, outdir,
     }
 
     if (valid_samples is not None) and (w_cons is not None):
+        maxpool_percentage = config['maxpool_percentage'][best_accuracy_idx]
         if regression:
-            tau = get_filters_regression(w_cons, z_scaler, valid_samples, list(valid_phenotypes))
+            tau = get_filters_regression(w_cons, z_scaler, valid_samples, valid_phenotypes,
+                                         maxpool_percentage)
             results['filter_tau'] = tau
 
         else:
-            n1 = np.median([xv.shape[0] for xv in valid_samples])
-            k = config['ncell_pooled'][best_accuracy_idx]
-            maxpool_percentage = 1. * k / ncell
-            ntop = int(maxpool_percentage * n1)
-            d = get_filters_classification(w_cons, z_scaler, valid_samples, valid_phenotypes, ntop)
-            results['dist'] = d
+            filter_diff = get_filters_classification(w_cons, z_scaler, valid_samples,
+                                                     valid_phenotypes, maxpool_percentage)
+            results['filter_diff'] = filter_diff
     return results
 
-def build_model(ncell, nmark, noisy_input, sigma, nfilter, coeff_l1, coeff_l2, coeff_activity,
+def build_model(ncell, nmark, nfilter, coeff_l1, coeff_l2, coeff_activity,
                 k, dropout, dropout_p, regression, n_classes, lr=0.01):
 
     """ Builds the neural network architecture """
@@ -518,43 +525,27 @@ def build_model(ncell, nmark, noisy_input, sigma, nfilter, coeff_l1, coeff_l2, c
     # the input layer
     data_input = Input(shape=(ncell, nmark))
 
-    # for some reason the follwing causes an error
-    #data_input = GaussianNoise(sigma=sigma)(data_input)
-
-    if noisy_input:
-        input2 = GaussianNoise(sigma=sigma)(data_input)
-        # the filters
-        conv1 = Convolution1D(nfilter, 1, activation='linear',
-                              W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-                              activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
-                              name='conv1')(input2)
-    else:
-        # the filters
-        conv1 = Convolution1D(nfilter, 1, activation='linear',
-                              W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-                              activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
-                              name='conv1')(data_input)
-    conv1 = Activation('relu')(conv1)
-
+    # the filters
+    conv = Convolution1D(nfilter, 1, activation='linear',
+                         W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
+                         activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
+                         name='conv1')(data_input)
+    conv = Activation('relu')(conv)
     # the cell grouping part
-    pool1 = Lambda(select_top, output_shape=(nfilter,), arguments={'k':k})(conv1)
-    #pool1 = AveragePooling1D(pool_length=ncell_pooled, stride=ncell_pooled, name='pool1')(select1)
-    #pool1 = MaxPooling1D(pool_length=ncell, stride=1, name='pool1')(conv1)
-    #pool1 = Flatten()(pool1)
+    pooled = Lambda(select_top, output_shape=(nfilter,), arguments={'k':k})(conv)
 
     # possibly add dropout
     if dropout or ((dropout == 'auto') and (nfilter > 5)):
-        pool1 = Dropout(p=dropout_p)(pool1)
+        pooled = Dropout(p=dropout_p)(pooled)
 
     # network prediction output
     if not regression:
         output = Dense(n_classes, activation='softmax',
                        W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-                       name='output')(pool1)
+                       name='output')(pooled)
     else:
         output = Dense(1, activation='tanh', W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-                       name='output')(pool1)
-
+                       name='output')(pooled)
     model = Model(input=data_input, output=output)
 
     if not regression:

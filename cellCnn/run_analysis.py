@@ -1,4 +1,9 @@
-""" This is the entry point for a CellCnn analysis from the command line. """
+
+""" Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
+
+This module supports a CellCnn analysis from the command line.
+
+"""
 
 import argparse
 import os
@@ -8,7 +13,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from cellCnn.utils import get_data, save_results, mkdir_p, get_selected_cells
-from cellCnn.plotting import plot_results_2class
+from cellCnn.plotting import plot_results
 from cellCnn.model import CellCnn
 
 
@@ -23,18 +28,17 @@ def main():
                         help='directory where input FCS files are located')
     parser.add_argument('-o', '--outdir', default='output',
                         help='directory where output will be generated')
-    parser.add_argument('--export_csv', action='store_true', default=False,
-                        help='export network weights as csv files')
-    parser.add_argument('-p', '--plot', action='store_true', default=False,
-                        help='whether to plot results ' \
-                             '(currently works only for binary classification)')
+    parser.add_argument('-p', '--plot', action='store_true', default=True,
+                        help='whether to plot results ')
     parser.add_argument('--export_selected_cells', action='store_true', default=False,
                         help='whether to export selected cell populations')
+    parser.add_argument('--export_csv', action='store_true', default=False,
+                        help='whether to export network weights as csv files')
     parser.add_argument('-l', '--load_results', action='store_true', default=False,
                         help='whether to load precomputed results')
 
     # data preprocessing
-    parser.add_argument('--train_perc', type=float, default=0.8,
+    parser.add_argument('--train_perc', type=float, default=0.75,
                         help='percentage of samples to be used for training')
     parser.add_argument('--arcsinh', dest='arcsinh', action='store_true',
                         help='preprocess the data with arcsinh')
@@ -48,6 +52,8 @@ def main():
     parser.add_argument('--no_scale', dest='scale', action='store_false',
                         help='do not z-transform features (mean=0, std=1) prior to training')
     parser.set_defaults(scale=True)
+    parser.add_argument('--quant_normed', action='store_true', default=False,
+                        help='input data has been pre-processed via quantile normalization')
 
     # multi-cell input specific
     parser.add_argument('--ncell', type=int, help='number of cells per multi-cell input',
@@ -60,11 +66,12 @@ def main():
                         help='generate random or outlier-enriched multi-cell inputs')
 
     # neural network specific
-    parser.add_argument('--ncell_pooled', nargs='+', type=int,
-                        help='list of choices for top-k max pooling', default=[1, 5, 10, 20])
+    parser.add_argument('--maxpool_percentages', nargs='+', type=float,
+                        help='list of choices (percentage of multi-cell input) for top-k max pooling',
+                        default=[0.01, 1, 5, 20, 100])
     parser.add_argument('--nfilter_choice', nargs='+', type=int,
                         help='list of choices for number of filters', default=range(3, 10))
-    parser.add_argument('--learning_rate', type=float,
+    parser.add_argument('--learning_rate', type=float, default=0.005,
                         help='learning rate for the Adam optimization algorithm')
     parser.add_argument('--coeff_l1', type=float, default=0,
                         help='coefficient for L1 weight regularization')
@@ -78,7 +85,9 @@ def main():
                         help='number of epochs before early stopping')
 
     # analysis specific
-    parser.add_argument('--nrun', type=int, default=10,
+    parser.add_argument('--seed', type=int, default=1234,
+                        help='random seed')
+    parser.add_argument('--nrun', type=int, default=15,
                         help='number of neural network configurations to try (should be >= 3)')
     parser.add_argument('--regression', action='store_true', default=False,
                         help='whether it is a regression problem (default is classification)')
@@ -91,31 +100,35 @@ def main():
                         help='output verbosity')
 
     # plot specific
-    parser.add_argument('--group_a', default='group_a',
-                        help='name of the first class')
-    parser.add_argument('--group_b', default='group_b',
-                        help='name of the second class')
-    parser.add_argument('--stat_test', choices=[None, 'ttest', 'mannwhitneyu'],
-                        help='statistical test for comparing cell population frequencies of two ' \
-                             'groups of samples')
-    parser.add_argument('--percentage_drop_filter', type=float, default=0.2,
+    parser.add_argument('--filter_diff_thres', type=float, default=0.2,
                         help='threshold that defines which filters are discriminative')
     parser.add_argument('--filter_response_thres', type=float, default=0,
                         help='threshold that defines the selected cell population per filter')
     parser.add_argument('--positive_filters_only', action='store_true', default=False,
                         help='whether to only consider filters associated with higher cell ' \
                              'population frequencies in the positive class')
+    parser.add_argument('--stat_test', choices=[None, 'ttest', 'mannwhitneyu'],
+                        help='statistical test for comparing cell population frequencies of two ' \
+                             'groups of samples')
+    parser.add_argument('--group_a', default='group A',
+                        help='name of the first class')
+    parser.add_argument('--group_b', default='group B',
+                        help='name of the second class')
     args = parser.parse_args()
 
     # read in the data
     fcs_info = np.array(pd.read_csv(args.fcs, sep=','))
     marker_names = list(pd.read_csv(args.markers, sep=',').columns)
+    # if the samples have already been pre-processed via quantile normalization
+    # we should not perform arcsinh transformation
+    if args.quant_normed:
+        args.arcsinh = False
     samples, phenotypes = get_data(args.indir, fcs_info, marker_names,
                                    args.arcsinh, args.cofactor)
 
     if not args.load_results:
         # generate training/validation sets
-        np.random.seed(12345)
+        np.random.seed(args.seed)
         val_perc = 1 - args.train_perc
         n_splits = int(1. / val_perc)
         skf = StratifiedKFold(n_splits=n_splits, shuffle=True)
@@ -126,39 +139,52 @@ def main():
         valid_phenotypes = [phenotypes[i] for i in val]
 
         # run CellCnn
-        model = CellCnn(ncell=args.ncell, nsubset=args.nsubset, per_sample=args.per_sample,
-                        subset_selection=args.subset_selection, scale=args.scale,
-                        ncell_pooled=args.ncell_pooled, nfilter_choice=args.nfilter_choice,
-                        nrun=args.nrun, regression=args.regression,
-                        learning_rate=args.learning_rate, coeff_l1=args.coeff_l1,
-                        coeff_l2=args.coeff_l2, coeff_activity=args.coeff_activity,
-                        max_epochs=args.max_epochs, patience=args.patience,
-                        dendrogram_cutoff=args.dendrogram_cutoff, accur_thres=args.accur_thres,
+        model = CellCnn(ncell=args.ncell,
+                        nsubset=args.nsubset,
+                        per_sample=args.per_sample,
+                        subset_selection=args.subset_selection,
+                        scale=args.scale,
+                        quant_normed=args.quant_normed,
+                        maxpool_percentages=args.maxpool_percentages,
+                        nfilter_choice=args.nfilter_choice,
+                        nrun=args.nrun,
+                        regression=args.regression,
+                        learning_rate=args.learning_rate,
+                        coeff_l1=args.coeff_l1,
+                        coeff_l2=args.coeff_l2,
+                        coeff_activity=args.coeff_activity,
+                        max_epochs=args.max_epochs,
+                        patience=args.patience,
+                        dendrogram_cutoff=args.dendrogram_cutoff,
+                        accur_thres=args.accur_thres,
                         verbose=args.verbose)
         model.fit(train_samples=train_samples, train_phenotypes=train_phenotypes,
                   valid_samples=valid_samples, valid_phenotypes=valid_phenotypes,
                   outdir=args.outdir)
         # save results for subsequent analysis
-        save_results(model.results, args.outdir, marker_names, args.export_csv)
         results = model.results
+        pickle.dump(results, open(os.path.join(args.outdir, 'results.pkl'), 'w'))
     else:
         results = pickle.load(open(os.path.join(args.outdir, 'results.pkl'), 'r'))
 
-    # plot results (currently only for binary classification)
+    if args.export_csv:
+        save_results(results, args.outdir, marker_names)
+
+    # plot results
     if args.plot or args.export_selected_cells:
         mkdir_p(os.path.join(args.outdir, 'plots'))
-        filter_info = plot_results_2class(results, samples, phenotypes,
-                                          marker_names, os.path.join(args.outdir, 'plots'),
-                                          percentage_drop_filter=args.percentage_drop_filter,
-                                          filter_response_thres=args.filter_response_thres,
-                                          group_a=args.group_a, group_b=args.group_b,
-                                          stat_test=args.stat_test,
-                                          positive_filters_only=args.positive_filters_only)
+        filter_info = plot_results(results, samples, phenotypes,
+                                   marker_names, os.path.join(args.outdir, 'plots'),
+                                   filter_diff_thres=args.filter_diff_thres,
+                                   filter_response_thres=args.filter_response_thres,
+                                   positive_filters_only=args.positive_filters_only,
+                                   stat_test=args.stat_test,
+                                   group_a=args.group_a, group_b=args.group_b)
         if args.export_selected_cells:
             csv_dir = os.path.join(args.outdir, 'selected_cells')
             mkdir_p(csv_dir)
             nfilter = len(filter_info)
-            sample_names = [name.split('.fcs')[0] for name in list(fcs_info[:,0])]
+            sample_names = [name.split('.fcs')[0] for name in list(fcs_info[:, 0])]
             # for each sample
             for x, x_name in zip(samples, sample_names):
                 flags = np.zeros((x.shape[0], 2*nfilter))
