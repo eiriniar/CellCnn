@@ -44,7 +44,11 @@
             
   <h1>Source code for cellCnn.model</h1><div class="highlight"><pre>
 <span></span>
-<span class="sd">&quot;&quot;&quot; This module contains functions for performing a CellCnn analysis. &quot;&quot;&quot;</span>
+<span class="sd">&quot;&quot;&quot; Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.</span>
+
+<span class="sd">This module contains functions for performing a CellCnn analysis.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">sys</span>
 <span class="kn">import</span> <span class="nn">os</span>
@@ -63,7 +67,6 @@
 
 <span class="kn">from</span> <span class="nn">keras.layers</span> <span class="k">import</span> <span class="n">Input</span><span class="p">,</span> <span class="n">Dense</span><span class="p">,</span> <span class="n">Lambda</span><span class="p">,</span> <span class="n">Activation</span><span class="p">,</span> <span class="n">Dropout</span>
 <span class="kn">from</span> <span class="nn">keras.layers.convolutional</span> <span class="k">import</span> <span class="n">Convolution1D</span>
-<span class="kn">from</span> <span class="nn">keras.layers.noise</span> <span class="k">import</span> <span class="n">GaussianNoise</span>
 <span class="kn">from</span> <span class="nn">keras.models</span> <span class="k">import</span> <span class="n">Model</span>
 <span class="kn">from</span> <span class="nn">keras.optimizers</span> <span class="k">import</span> <span class="n">Adam</span>
 <span class="kn">from</span> <span class="nn">keras.regularizers</span> <span class="k">import</span> <span class="n">l1l2</span>
@@ -83,19 +86,23 @@
 <span class="sd">            `per_sample` = `False`. Total number of multi-cell inputs that will be generated from</span>
 <span class="sd">            each input sample, if `per_sample` = `True`.</span>
 <span class="sd">        - per_sample :</span>
-<span class="sd">            Whether the nsubset argument refers to each class or each input sample.</span>
+<span class="sd">            Whether the `nsubset` argument refers to each class or each input sample.</span>
 <span class="sd">            For regression problems, it is automatically set to `True`.</span>
 <span class="sd">        - subset_selection :</span>
 <span class="sd">            Can be &#39;random&#39; or &#39;outlier&#39;. Generate multi-cell inputs uniformly at</span>
 <span class="sd">            random or biased towards outliers. The latter option is only relevant for detection of</span>
 <span class="sd">            extremely rare (frequency &lt; 0.1%) cell populations.</span>
-<span class="sd">        - ncell_pooled :</span>
-<span class="sd">            A list specifying candidate numbers of cells that will be max-pooled per</span>
-<span class="sd">            filter. For mean pooling, set `ncell_pooled` = `[ncell]`.</span>
+<span class="sd">        - maxpool_percentages :</span>
+<span class="sd">            A list specifying candidate percentages of cells that will be max-pooled per</span>
+<span class="sd">            filter. For instance, mean pooling corresponds to `maxpool_percentages` = `[100]`.</span>
 <span class="sd">        - nfilter_choice :</span>
 <span class="sd">            A list specifying candidate numbers of filters for the neural network.</span>
 <span class="sd">        - scale :</span>
-<span class="sd">            Whetherh to z-transform each feature (mean=0, std=1) prior to training.</span>
+<span class="sd">            Whether to z-transform each feature (mean = 0, standard deviation = 1) prior to</span>
+<span class="sd">            training.</span>
+<span class="sd">        - quant_normed :</span>
+<span class="sd">            Whether the input samples have already been pre-processed with quantile</span>
+<span class="sd">            normalization. In this case, each feature is zero-centered by subtracting 0.5.</span>
 <span class="sd">        - nrun :</span>
 <span class="sd">            Number of neural network configurations to try (should be set &gt;= 3).</span>
 <span class="sd">        - regression :</span>
@@ -115,8 +122,6 @@
 <span class="sd">            Coefficient for L2 weight regularization.</span>
 <span class="sd">        - coeff_activity :</span>
 <span class="sd">            Coefficient for regularizing the activity at each filter.</span>
-<span class="sd">        - noisy_input :</span>
-<span class="sd">            If `True`, a Gaussian noise layer is added after the input layer.</span>
 <span class="sd">        - max_epochs :</span>
 <span class="sd">            Maximum number of iterations through the data.</span>
 <span class="sd">        - patience :</span>
@@ -132,21 +137,22 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ncell</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">nsubset</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">per_sample</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">subset_selection</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
-                 <span class="n">ncell_pooled</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">],</span> <span class="n">nfilter_choice</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
-                 <span class="n">scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nrun</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">regression</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">learning_rate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coeff_l1</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">dropout_p</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span>
-                 <span class="n">noisy_input</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-                 <span class="n">dendrogram_cutoff</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">accur_thres</span><span class="o">=.</span><span class="mi">95</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+                 <span class="n">maxpool_percentages</span><span class="o">=</span><span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">5.</span><span class="p">,</span> <span class="mf">20.</span><span class="p">,</span> <span class="mf">100.</span><span class="p">],</span> <span class="n">scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">quant_normed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">nfilter_choice</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">dropout</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">dropout_p</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span>
+                 <span class="n">coeff_l1</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="mf">0.0001</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">regression</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">max_epochs</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">nrun</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">dendrogram_cutoff</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span>
+                 <span class="n">accur_thres</span><span class="o">=.</span><span class="mi">95</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
 
         <span class="c1"># initialize model attributes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">quant_normed</span> <span class="o">=</span> <span class="n">quant_normed</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nrun</span> <span class="o">=</span> <span class="n">nrun</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">regression</span> <span class="o">=</span> <span class="n">regression</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ncell</span> <span class="o">=</span> <span class="n">ncell</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nsubset</span> <span class="o">=</span> <span class="n">nsubset</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">per_sample</span> <span class="o">=</span> <span class="n">per_sample</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">subset_selection</span> <span class="o">=</span> <span class="n">subset_selection</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">ncell_pooled</span> <span class="o">=</span> <span class="n">ncell_pooled</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">maxpool_percentages</span> <span class="o">=</span> <span class="n">maxpool_percentages</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nfilter_choice</span> <span class="o">=</span> <span class="n">nfilter_choice</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="n">learning_rate</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">coeff_l1</span> <span class="o">=</span> <span class="n">coeff_l1</span>
@@ -154,7 +160,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">coeff_activity</span> <span class="o">=</span> <span class="n">coeff_activity</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="n">dropout</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dropout_p</span> <span class="o">=</span> <span class="n">dropout_p</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">noisy_input</span> <span class="o">=</span> <span class="n">noisy_input</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">max_epochs</span> <span class="o">=</span> <span class="n">max_epochs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">patience</span> <span class="o">=</span> <span class="n">patience</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">dendrogram_cutoff</span> <span class="o">=</span> <span class="n">dendrogram_cutoff</span>
@@ -204,10 +209,11 @@
                           <span class="n">scale</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span> <span class="n">nrun</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nrun</span><span class="p">,</span> <span class="n">regression</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">regression</span><span class="p">,</span>
                           <span class="n">ncell</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nsubset</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nsubset</span><span class="p">,</span> <span class="n">per_sample</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">per_sample</span><span class="p">,</span>
                           <span class="n">subset_selection</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subset_selection</span><span class="p">,</span>
-                          <span class="n">ncell_pooled</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">ncell_pooled</span><span class="p">,</span> <span class="n">nfilter_choice</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nfilter_choice</span><span class="p">,</span>
+                          <span class="n">maxpool_percentages</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">maxpool_percentages</span><span class="p">,</span>
+                          <span class="n">nfilter_choice</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nfilter_choice</span><span class="p">,</span>
                           <span class="n">learning_rate</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span>
-                          <span class="n">coeff_l1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coeff_l2</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">,</span>
-                          <span class="n">dropout_p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout_p</span><span class="p">,</span> <span class="n">noisy_input</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">noisy_input</span><span class="p">,</span>
+                          <span class="n">coeff_l1</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coeff_l2</span><span class="p">,</span>
+                          <span class="n">dropout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">,</span> <span class="n">dropout_p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout_p</span><span class="p">,</span>
                           <span class="n">coeff_activity</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coeff_activity</span><span class="p">,</span> <span class="n">max_epochs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_epochs</span><span class="p">,</span>
                           <span class="n">patience</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">patience</span><span class="p">,</span> <span class="n">dendrogram_cutoff</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dendrogram_cutoff</span><span class="p">,</span>
                           <span class="n">accur_thres</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">accur_thres</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">verbose</span><span class="p">)</span>
@@ -250,13 +256,12 @@
 
         <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">new_samples</span><span class="p">),</span> <span class="n">n_classes</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">i_enum</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sorted_idx</span><span class="p">):</span>
-            <span class="n">k</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ncell_pooled&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
             <span class="n">nfilter</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;nfilter&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">maxpool_percentage</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">*</span> <span class="n">k</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">ncell</span>
-            <span class="n">ncell_pooled</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">maxpool_percentage</span> <span class="o">*</span> <span class="n">ncell_per_sample</span><span class="p">))</span>
+            <span class="n">maxpool_percentage</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;maxpool_percentage&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">ncell_pooled</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">maxpool_percentage</span><span class="o">/</span><span class="mf">100.</span> <span class="o">*</span> <span class="n">ncell_per_sample</span><span class="p">))</span>
 
             <span class="c1"># build the model architecture</span>
-            <span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">ncell_per_sample</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span> <span class="n">noisy_input</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">noisy_input</span><span class="p">,</span> <span class="n">sigma</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">ncell_per_sample</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span>
                                 <span class="n">nfilter</span><span class="o">=</span><span class="n">nfilter</span><span class="p">,</span> <span class="n">coeff_l1</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                                 <span class="n">k</span><span class="o">=</span><span class="n">ncell_pooled</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dropout_p</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                                 <span class="n">regression</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">regression</span><span class="p">,</span> <span class="n">n_classes</span><span class="o">=</span><span class="n">n_classes</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">)</span>
@@ -270,21 +275,24 @@
                            <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">new_samples</span><span class="p">]</span>
             <span class="n">data_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">(</span><span class="n">new_samples</span><span class="p">)</span>
             <span class="n">y_pred</span><span class="p">[</span><span class="n">i_enum</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">data_test</span><span class="p">)</span>
-
         <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div></div>
 
 
 <span class="k">def</span> <span class="nf">train_model</span><span class="p">(</span><span class="n">train_samples</span><span class="p">,</span> <span class="n">train_phenotypes</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span>
                 <span class="n">valid_samples</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">valid_phenotypes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">generate_valid_set</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nrun</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">regression</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">ncell</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">nsubset</span><span class="o">=</span><span class="mi">4000</span><span class="p">,</span> <span class="n">per_sample</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">subset_selection</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
-                <span class="n">ncell_pooled</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span> <span class="n">nfilter_choice</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">],</span>
+                <span class="n">scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">quant_normed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">nrun</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">regression</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">ncell</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">nsubset</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">per_sample</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">subset_selection</span><span class="o">=</span><span class="s1">&#39;random&#39;</span><span class="p">,</span>
+                <span class="n">maxpool_percentages</span><span class="o">=</span><span class="p">[</span><span class="mf">0.01</span><span class="p">,</span> <span class="mf">1.</span><span class="p">,</span> <span class="mf">5.</span><span class="p">,</span> <span class="mf">20.</span><span class="p">,</span> <span class="mf">100.</span><span class="p">],</span> <span class="n">nfilter_choice</span><span class="o">=</span><span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
                 <span class="n">learning_rate</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">coeff_l1</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">,</span> <span class="n">dropout_p</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span>
-                <span class="n">noisy_input</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_epochs</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                <span class="n">coeff_activity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_epochs</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
                 <span class="n">dendrogram_cutoff</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span> <span class="n">accur_thres</span><span class="o">=.</span><span class="mi">95</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
 
     <span class="sd">&quot;&quot;&quot; Performs a CellCnn analysis &quot;&quot;&quot;</span>
     <span class="n">mkdir_p</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">nrun</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="nb">print</span> <span class="s1">&#39;The nrun argument should be &gt;= 3, setting it to 3.&#39;</span>
+        <span class="n">nrun</span> <span class="o">=</span> <span class="mi">3</span>
 
     <span class="c1"># copy the list of samples so that they are not modified in place</span>
     <span class="n">train_samples</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">train_samples</span><span class="p">)</span>
@@ -329,8 +337,12 @@
         <span class="n">sample_ids</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">))</span>
         <span class="n">X_valid</span><span class="p">,</span> <span class="n">id_valid</span> <span class="o">=</span> <span class="n">combine_samples</span><span class="p">(</span><span class="n">valid_samples</span><span class="p">,</span> <span class="n">sample_ids</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">scale</span><span class="p">:</span>
-        <span class="n">z_scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">quant_normed</span><span class="p">:</span>
+        <span class="n">z_scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">(</span><span class="n">with_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">with_std</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">z_scaler</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">X_train</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
+        <span class="n">X_train</span> <span class="o">=</span> <span class="n">z_scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">scale</span><span class="p">:</span>
+        <span class="n">z_scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">(</span><span class="n">with_mean</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">with_std</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">z_scaler</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
         <span class="n">X_train</span> <span class="o">=</span> <span class="n">z_scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
@@ -437,26 +449,21 @@
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">regression</span><span class="p">:</span>
         <span class="n">n_classes</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">train_phenotypes</span><span class="p">))</span>
-        <span class="n">y_tr</span> <span class="o">=</span> <span class="n">to_categorical</span><span class="p">(</span><span class="n">y_tr</span><span class="p">)</span>
-        <span class="n">y_v</span> <span class="o">=</span> <span class="n">to_categorical</span><span class="p">(</span><span class="n">y_v</span><span class="p">)</span>
+        <span class="n">y_tr</span> <span class="o">=</span> <span class="n">to_categorical</span><span class="p">(</span><span class="n">y_tr</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">)</span>
+        <span class="n">y_v</span> <span class="o">=</span> <span class="n">to_categorical</span><span class="p">(</span><span class="n">y_v</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">)</span>
 
     <span class="c1"># train some neural networks with different parameter configurations</span>
     <span class="n">accuracies</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">nrun</span><span class="p">)</span>
     <span class="n">w_store</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
     <span class="n">config</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
-    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;sigma&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">config</span><span class="p">[</span><span class="s1">&#39;nfilter&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">config</span><span class="p">[</span><span class="s1">&#39;learning_rate&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ncell_pooled&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">config</span><span class="p">[</span><span class="s1">&#39;maxpool_percentage&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">lr</span> <span class="o">=</span> <span class="n">learning_rate</span>
-    <span class="n">sigma</span> <span class="o">=</span> <span class="mi">0</span>
 
     <span class="k">for</span> <span class="n">irun</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nrun</span><span class="p">):</span>
         <span class="k">if</span> <span class="n">verbose</span><span class="p">:</span>
             <span class="nb">print</span> <span class="s1">&#39;training network: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">irun</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">noisy_input</span><span class="p">:</span>
-            <span class="n">sigma</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
-            <span class="n">config</span><span class="p">[</span><span class="s1">&#39;sigma&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">learning_rate</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">lr</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">config</span><span class="p">[</span><span class="s1">&#39;learning_rate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">lr</span><span class="p">)</span>
@@ -467,12 +474,13 @@
         <span class="nb">print</span> <span class="s1">&#39;Number of filters: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">nfilter</span>
 
         <span class="c1"># choose number of cells pooled for this run</span>
-        <span class="n">k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">ncell_pooled</span><span class="p">)</span>
-        <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ncell_pooled&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="n">mp</span> <span class="o">=</span> <span class="n">maxpool_percentages</span><span class="p">[</span><span class="n">irun</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">maxpool_percentages</span><span class="p">)]</span>
+        <span class="n">config</span><span class="p">[</span><span class="s1">&#39;maxpool_percentage&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mp</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">mp</span><span class="o">/</span><span class="mf">100.</span> <span class="o">*</span> <span class="n">ncell</span><span class="p">))</span>
         <span class="nb">print</span> <span class="s1">&#39;Cells pooled: </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">k</span>
 
         <span class="c1"># build the neural network</span>
-        <span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span> <span class="n">noisy_input</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">nfilter</span><span class="p">,</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">build_model</span><span class="p">(</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span> <span class="n">nfilter</span><span class="p">,</span>
                             <span class="n">coeff_l1</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span>
                             <span class="n">dropout</span><span class="p">,</span> <span class="n">dropout_p</span><span class="p">,</span> <span class="n">regression</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">,</span> <span class="n">lr</span><span class="p">)</span>
 
@@ -484,14 +492,14 @@
                 <span class="n">earlyStopping</span> <span class="o">=</span> <span class="n">EarlyStopping</span><span class="p">(</span><span class="n">monitor</span><span class="o">=</span><span class="s1">&#39;val_loss&#39;</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="n">patience</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
                 <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_tr</span><span class="p">),</span> <span class="n">int32</span><span class="p">(</span><span class="n">y_tr</span><span class="p">),</span>
                           <span class="n">nb_epoch</span><span class="o">=</span><span class="n">max_epochs</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">bs</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">check</span><span class="p">,</span> <span class="n">earlyStopping</span><span class="p">],</span>
-                          <span class="n">validation_data</span><span class="o">=</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_v</span><span class="p">),</span> <span class="n">int32</span><span class="p">(</span><span class="n">y_v</span><span class="p">)))</span>
+                          <span class="n">validation_data</span><span class="o">=</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_v</span><span class="p">),</span> <span class="n">int32</span><span class="p">(</span><span class="n">y_v</span><span class="p">)),</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">check</span> <span class="o">=</span> <span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="n">monitor</span><span class="o">=</span><span class="s1">&#39;val_loss&#39;</span><span class="p">,</span> <span class="n">save_best_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                                         <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
                 <span class="n">earlyStopping</span> <span class="o">=</span> <span class="n">EarlyStopping</span><span class="p">(</span><span class="n">monitor</span><span class="o">=</span><span class="s1">&#39;val_loss&#39;</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="n">patience</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;auto&#39;</span><span class="p">)</span>
                 <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_tr</span><span class="p">),</span> <span class="n">float32</span><span class="p">(</span><span class="n">y_tr</span><span class="p">),</span>
                           <span class="n">nb_epoch</span><span class="o">=</span><span class="n">max_epochs</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="n">bs</span><span class="p">,</span> <span class="n">callbacks</span><span class="o">=</span><span class="p">[</span><span class="n">check</span><span class="p">,</span> <span class="n">earlyStopping</span><span class="p">],</span>
-                          <span class="n">validation_data</span><span class="o">=</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_v</span><span class="p">),</span> <span class="n">float32</span><span class="p">(</span><span class="n">y_v</span><span class="p">)))</span>
+                          <span class="n">validation_data</span><span class="o">=</span><span class="p">(</span><span class="n">float32</span><span class="p">(</span><span class="n">X_v</span><span class="p">),</span> <span class="n">float32</span><span class="p">(</span><span class="n">y_v</span><span class="p">)),</span> <span class="n">verbose</span><span class="o">=</span><span class="n">verbose</span><span class="p">)</span>
 
             <span class="c1"># load the model from the epoch with highest validation accuracy</span>
             <span class="n">model</span><span class="o">.</span><span class="n">load_weights</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
@@ -526,7 +534,7 @@
 
     <span class="c1"># post-process the learned filters</span>
     <span class="c1"># cluster weights from all networks that achieved accuracy above the specified thershold</span>
-    <span class="n">w_cons</span><span class="p">,</span> <span class="n">cluster_res</span> <span class="o">=</span> <span class="n">cluster_profiles</span><span class="p">(</span><span class="n">w_store</span><span class="p">,</span> <span class="n">accuracies</span><span class="p">,</span> <span class="n">accur_thres</span><span class="p">,</span> <span class="n">regression</span><span class="p">,</span>
+    <span class="n">w_cons</span><span class="p">,</span> <span class="n">cluster_res</span> <span class="o">=</span> <span class="n">cluster_profiles</span><span class="p">(</span><span class="n">w_store</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span> <span class="n">accuracies</span><span class="p">,</span> <span class="n">accur_thres</span><span class="p">,</span>
                                            <span class="n">dendrogram_cutoff</span><span class="o">=</span><span class="n">dendrogram_cutoff</span><span class="p">)</span>
     <span class="n">results</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s1">&#39;clustering_result&#39;</span><span class="p">:</span> <span class="n">cluster_res</span><span class="p">,</span>
@@ -542,20 +550,19 @@
     <span class="p">}</span>
 
     <span class="k">if</span> <span class="p">(</span><span class="n">valid_samples</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">w_cons</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="n">maxpool_percentage</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;maxpool_percentage&#39;</span><span class="p">][</span><span class="n">best_accuracy_idx</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">regression</span><span class="p">:</span>
-            <span class="n">tau</span> <span class="o">=</span> <span class="n">get_filters_regression</span><span class="p">(</span><span class="n">w_cons</span><span class="p">,</span> <span class="n">z_scaler</span><span class="p">,</span> <span class="n">valid_samples</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">valid_phenotypes</span><span class="p">))</span>
+            <span class="n">tau</span> <span class="o">=</span> <span class="n">get_filters_regression</span><span class="p">(</span><span class="n">w_cons</span><span class="p">,</span> <span class="n">z_scaler</span><span class="p">,</span> <span class="n">valid_samples</span><span class="p">,</span> <span class="n">valid_phenotypes</span><span class="p">,</span>
+                                         <span class="n">maxpool_percentage</span><span class="p">)</span>
             <span class="n">results</span><span class="p">[</span><span class="s1">&#39;filter_tau&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tau</span>
 
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">n1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">([</span><span class="n">xv</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">xv</span> <span class="ow">in</span> <span class="n">valid_samples</span><span class="p">])</span>
-            <span class="n">k</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s1">&#39;ncell_pooled&#39;</span><span class="p">][</span><span class="n">best_accuracy_idx</span><span class="p">]</span>
-            <span class="n">maxpool_percentage</span> <span class="o">=</span> <span class="mf">1.</span> <span class="o">*</span> <span class="n">k</span> <span class="o">/</span> <span class="n">ncell</span>
-            <span class="n">ntop</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">maxpool_percentage</span> <span class="o">*</span> <span class="n">n1</span><span class="p">)</span>
-            <span class="n">d</span> <span class="o">=</span> <span class="n">get_filters_classification</span><span class="p">(</span><span class="n">w_cons</span><span class="p">,</span> <span class="n">z_scaler</span><span class="p">,</span> <span class="n">valid_samples</span><span class="p">,</span> <span class="n">valid_phenotypes</span><span class="p">,</span> <span class="n">ntop</span><span class="p">)</span>
-            <span class="n">results</span><span class="p">[</span><span class="s1">&#39;dist&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">d</span>
+            <span class="n">filter_diff</span> <span class="o">=</span> <span class="n">get_filters_classification</span><span class="p">(</span><span class="n">w_cons</span><span class="p">,</span> <span class="n">z_scaler</span><span class="p">,</span> <span class="n">valid_samples</span><span class="p">,</span>
+                                                     <span class="n">valid_phenotypes</span><span class="p">,</span> <span class="n">maxpool_percentage</span><span class="p">)</span>
+            <span class="n">results</span><span class="p">[</span><span class="s1">&#39;filter_diff&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">filter_diff</span>
     <span class="k">return</span> <span class="n">results</span>
 
-<span class="k">def</span> <span class="nf">build_model</span><span class="p">(</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span> <span class="n">noisy_input</span><span class="p">,</span> <span class="n">sigma</span><span class="p">,</span> <span class="n">nfilter</span><span class="p">,</span> <span class="n">coeff_l1</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="p">,</span>
+<span class="k">def</span> <span class="nf">build_model</span><span class="p">(</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nmark</span><span class="p">,</span> <span class="n">nfilter</span><span class="p">,</span> <span class="n">coeff_l1</span><span class="p">,</span> <span class="n">coeff_l2</span><span class="p">,</span> <span class="n">coeff_activity</span><span class="p">,</span>
                 <span class="n">k</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="n">dropout_p</span><span class="p">,</span> <span class="n">regression</span><span class="p">,</span> <span class="n">n_classes</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
 
     <span class="sd">&quot;&quot;&quot; Builds the neural network architecture &quot;&quot;&quot;</span>
@@ -563,43 +570,27 @@
     <span class="c1"># the input layer</span>
     <span class="n">data_input</span> <span class="o">=</span> <span class="n">Input</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="n">ncell</span><span class="p">,</span> <span class="n">nmark</span><span class="p">))</span>
 
-    <span class="c1"># for some reason the follwing causes an error</span>
-    <span class="c1">#data_input = GaussianNoise(sigma=sigma)(data_input)</span>
-
-    <span class="k">if</span> <span class="n">noisy_input</span><span class="p">:</span>
-        <span class="n">input2</span> <span class="o">=</span> <span class="n">GaussianNoise</span><span class="p">(</span><span class="n">sigma</span><span class="o">=</span><span class="n">sigma</span><span class="p">)(</span><span class="n">data_input</span><span class="p">)</span>
-        <span class="c1"># the filters</span>
-        <span class="n">conv1</span> <span class="o">=</span> <span class="n">Convolution1D</span><span class="p">(</span><span class="n">nfilter</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
-                              <span class="n">W_regularizer</span><span class="o">=</span><span class="n">l1l2</span><span class="p">(</span><span class="n">l1</span><span class="o">=</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">l2</span><span class="o">=</span><span class="n">coeff_l2</span><span class="p">),</span>
-                              <span class="n">activity_regularizer</span><span class="o">=</span><span class="n">activity_KL</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="n">coeff_activity</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.05</span><span class="p">),</span>
-                              <span class="n">name</span><span class="o">=</span><span class="s1">&#39;conv1&#39;</span><span class="p">)(</span><span class="n">input2</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="c1"># the filters</span>
-        <span class="n">conv1</span> <span class="o">=</span> <span class="n">Convolution1D</span><span class="p">(</span><span class="n">nfilter</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
-                              <span class="n">W_regularizer</span><span class="o">=</span><span class="n">l1l2</span><span class="p">(</span><span class="n">l1</span><span class="o">=</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">l2</span><span class="o">=</span><span class="n">coeff_l2</span><span class="p">),</span>
-                              <span class="n">activity_regularizer</span><span class="o">=</span><span class="n">activity_KL</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="n">coeff_activity</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.05</span><span class="p">),</span>
-                              <span class="n">name</span><span class="o">=</span><span class="s1">&#39;conv1&#39;</span><span class="p">)(</span><span class="n">data_input</span><span class="p">)</span>
-    <span class="n">conv1</span> <span class="o">=</span> <span class="n">Activation</span><span class="p">(</span><span class="s1">&#39;relu&#39;</span><span class="p">)(</span><span class="n">conv1</span><span class="p">)</span>
-
+    <span class="c1"># the filters</span>
+    <span class="n">conv</span> <span class="o">=</span> <span class="n">Convolution1D</span><span class="p">(</span><span class="n">nfilter</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span>
+                         <span class="n">W_regularizer</span><span class="o">=</span><span class="n">l1l2</span><span class="p">(</span><span class="n">l1</span><span class="o">=</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">l2</span><span class="o">=</span><span class="n">coeff_l2</span><span class="p">),</span>
+                         <span class="n">activity_regularizer</span><span class="o">=</span><span class="n">activity_KL</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="n">coeff_activity</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">0.05</span><span class="p">),</span>
+                         <span class="n">name</span><span class="o">=</span><span class="s1">&#39;conv1&#39;</span><span class="p">)(</span><span class="n">data_input</span><span class="p">)</span>
+    <span class="n">conv</span> <span class="o">=</span> <span class="n">Activation</span><span class="p">(</span><span class="s1">&#39;relu&#39;</span><span class="p">)(</span><span class="n">conv</span><span class="p">)</span>
     <span class="c1"># the cell grouping part</span>
-    <span class="n">pool1</span> <span class="o">=</span> <span class="n">Lambda</span><span class="p">(</span><span class="n">select_top</span><span class="p">,</span> <span class="n">output_shape</span><span class="o">=</span><span class="p">(</span><span class="n">nfilter</span><span class="p">,),</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;k&#39;</span><span class="p">:</span><span class="n">k</span><span class="p">})(</span><span class="n">conv1</span><span class="p">)</span>
-    <span class="c1">#pool1 = AveragePooling1D(pool_length=ncell_pooled, stride=ncell_pooled, name=&#39;pool1&#39;)(select1)</span>
-    <span class="c1">#pool1 = MaxPooling1D(pool_length=ncell, stride=1, name=&#39;pool1&#39;)(conv1)</span>
-    <span class="c1">#pool1 = Flatten()(pool1)</span>
+    <span class="n">pooled</span> <span class="o">=</span> <span class="n">Lambda</span><span class="p">(</span><span class="n">select_top</span><span class="p">,</span> <span class="n">output_shape</span><span class="o">=</span><span class="p">(</span><span class="n">nfilter</span><span class="p">,),</span> <span class="n">arguments</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;k&#39;</span><span class="p">:</span><span class="n">k</span><span class="p">})(</span><span class="n">conv</span><span class="p">)</span>
 
     <span class="c1"># possibly add dropout</span>
     <span class="k">if</span> <span class="n">dropout</span> <span class="ow">or</span> <span class="p">((</span><span class="n">dropout</span> <span class="o">==</span> <span class="s1">&#39;auto&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">nfilter</span> <span class="o">&gt;</span> <span class="mi">5</span><span class="p">)):</span>
-        <span class="n">pool1</span> <span class="o">=</span> <span class="n">Dropout</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">dropout_p</span><span class="p">)(</span><span class="n">pool1</span><span class="p">)</span>
+        <span class="n">pooled</span> <span class="o">=</span> <span class="n">Dropout</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">dropout_p</span><span class="p">)(</span><span class="n">pooled</span><span class="p">)</span>
 
     <span class="c1"># network prediction output</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">regression</span><span class="p">:</span>
         <span class="n">output</span> <span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="n">n_classes</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;softmax&#39;</span><span class="p">,</span>
                        <span class="n">W_regularizer</span><span class="o">=</span><span class="n">l1l2</span><span class="p">(</span><span class="n">l1</span><span class="o">=</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">l2</span><span class="o">=</span><span class="n">coeff_l2</span><span class="p">),</span>
-                       <span class="n">name</span><span class="o">=</span><span class="s1">&#39;output&#39;</span><span class="p">)(</span><span class="n">pool1</span><span class="p">)</span>
+                       <span class="n">name</span><span class="o">=</span><span class="s1">&#39;output&#39;</span><span class="p">)(</span><span class="n">pooled</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">output</span> <span class="o">=</span> <span class="n">Dense</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s1">&#39;tanh&#39;</span><span class="p">,</span> <span class="n">W_regularizer</span><span class="o">=</span><span class="n">l1l2</span><span class="p">(</span><span class="n">l1</span><span class="o">=</span><span class="n">coeff_l1</span><span class="p">,</span> <span class="n">l2</span><span class="o">=</span><span class="n">coeff_l2</span><span class="p">),</span>
-                       <span class="n">name</span><span class="o">=</span><span class="s1">&#39;output&#39;</span><span class="p">)(</span><span class="n">pool1</span><span class="p">)</span>
-
+                       <span class="n">name</span><span class="o">=</span><span class="s1">&#39;output&#39;</span><span class="p">)(</span><span class="n">pooled</span><span class="p">)</span>
     <span class="n">model</span> <span class="o">=</span> <span class="n">Model</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">data_input</span><span class="p">,</span> <span class="n">output</span><span class="o">=</span><span class="n">output</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">regression</span><span class="p">:</span>
