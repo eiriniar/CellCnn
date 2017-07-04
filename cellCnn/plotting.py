@@ -331,13 +331,18 @@ def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_
     if y_labels is None:
         y_labels = range(w.shape[0])
 
-    plt.figure(figsize=fig_size)
-    clmap = sns.clustermap(pd.DataFrame(w, columns=x_labels),
-                           method='average', metric='cosine', row_linkage=row_linkage,
-                           col_cluster=False, robust=True, yticklabels=y_labels)
-    plt.setp(clmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
-    plt.setp(clmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
-    clmap.cax.set_visible(True)
+    if w.shape[0] > 1:
+        plt.figure(figsize=fig_size)
+        clmap = sns.clustermap(pd.DataFrame(w, columns=x_labels),
+                               method='average', metric='cosine', row_linkage=row_linkage,
+                               col_cluster=False, robust=True, yticklabels=y_labels)
+        plt.setp(clmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
+        plt.setp(clmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
+        clmap.cax.set_visible(True)
+    else:
+        plt.figure(figsize=(10, 1.5))
+        ax = sns.heatmap(pd.DataFrame(w, columns=x_labels), robust=True, yticklabels=y_labels)
+        plt.tight_layout()
     plt.savefig(fig_path)
     plt.clf()
     plt.close()

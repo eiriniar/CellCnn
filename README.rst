@@ -63,7 +63,7 @@ Another relevant argument is ``--export_selected_cells``, which produces a CSV r
 found in the FCS input file.
 The CSV result file contains two columns per selected filter, the first indicating the cell filter response as a continuous value and the second containing a binary value resulting from thresholding the continuous cell filter response. This later column is an indicator of whether a cell belongs to the cell population selected by a particular filter.
 
-``python ../run_analysis.py -f NK_fcs_samples_with_labels.csv -m NK_markers.csv -i NK_cell_dataset/gated_NK/ -o outdir_NK --plot --group_a CMV- --group_b CMV+ --filter_response_thres 0.3 --load_results --export_selected_cells``
+``python ../run_analysis.py -f NK_fcs_samples_with_labels.csv -m NK_markers.csv -i NK_cell_dataset/gated_NK/ -o outdir_NK --group_a CMV- --group_b CMV+ --filter_response_thres 0.3 --load_results --export_selected_cells``
 
 
 Documentation
