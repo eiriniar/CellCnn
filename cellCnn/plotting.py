@@ -15,6 +15,8 @@ from sklearn.cluster import DBSCAN
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import NearestNeighbors
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.gridspec as gridspec
