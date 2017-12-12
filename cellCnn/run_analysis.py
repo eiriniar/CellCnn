@@ -114,6 +114,8 @@ def main():
                         help='name of the first class')
     parser.add_argument('--group_b', default='group B',
                         help='name of the second class')
+    parser.add_argument('--tsne_ncell', type=int, help='number of cells to include in t-SNE maps',
+                        default=10000)
     args = parser.parse_args()
 
     # read in the data
@@ -179,7 +181,8 @@ def main():
                                    filter_response_thres=args.filter_response_thres,
                                    positive_filters_only=args.positive_filters_only,
                                    stat_test=args.stat_test,
-                                   group_a=args.group_a, group_b=args.group_b)
+                                   group_a=args.group_a, group_b=args.group_b,
+                                   tsne_ncell=args.tsne_ncell)
         if args.export_selected_cells:
             csv_dir = os.path.join(args.outdir, 'selected_cells')
             mkdir_p(csv_dir)

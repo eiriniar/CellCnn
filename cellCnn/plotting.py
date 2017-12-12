@@ -15,6 +15,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import NearestNeighbors
+from sklearn.utils import shuffle
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
@@ -33,10 +34,9 @@ except ImportError:
 def plot_results(results, samples, phenotypes, labels, outdir,
                  filter_diff_thres=.2, filter_response_thres=0, response_grad_cutoff=None,
                  stat_test=None, positive_filters_only=False, log_yscale=False,
-                 group_a='group A', group_b='group B',
+                 group_a='group A', group_b='group B', tsne_ncell=10000,
                  clustering=None, add_filter_response=False,
-                 percentage_drop_cluster=.1, min_cluster_freq=0.2,
-                 plot_tsne=False, tsne_ncell=3000):
+                 percentage_drop_cluster=.1, min_cluster_freq=0.2):
 
     """ Plots the results of a CellCnn analysis.
 
@@ -80,6 +80,8 @@ def plot_results(results, samples, phenotypes, labels, outdir,
             logarithmic scale.
         - clustering: None | 'dbscan' | 'louvain'
             Post-processing option for selected cell populations. Default is None.
+        - tsne_ncell:
+            Number of cells to include in t-SNE calculations and plots.
 
     Returns:
         A list with the indices and corresponding cell filter response thresholds of selected
@@ -111,6 +113,8 @@ def plot_results(results, samples, phenotypes, labels, outdir,
             the true response valuees.
             This plot helps decide on a cutoff (``filter_diff_thres`` parameter) for selecting
             discriminative filters.
+        - tsne_all_cells.png :
+            Marker distribution overlaid on t-SNE map. 
 
         In addition, the following plots are produced for each selected filter (e.g. filter ``i``):
 
@@ -126,6 +130,12 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         - selected_population_boxplot_filter_i.pdf :
             Boxplot of selected cell population frequencies in samples of the different classes.
             Currently only plotted for binary classification problems.
+
+        - tsne_cell_response_filter_i.png :
+            Cell filter response overlaid on t-SNE map.
+
+        - tsne_selected_cells_filter_i.png :
+            Marker distribution of selected cell population overlaid on t-SNE map.
     """
 
     # create the output directory
@@ -228,6 +238,18 @@ def plot_results(results, samples, phenotypes, labels, outdir,
     if results['scaler'] is not None:
         x = results['scaler'].transform(x)
 
+    print 'Computing t-SNE projection...'
+    tsne_idx = np.random.choice(x.shape[0], tsne_ncell)
+    x_for_tsne = x[tsne_idx].copy()
+    x_tsne = TSNE(n_components=2).fit_transform(x_for_tsne)
+    vmin, vmax = np.zeros(x.shape[1]), np.zeros(x.shape[1])
+    for seq_index in range(x.shape[1]):
+        vmin[seq_index] = np.percentile(x[:, seq_index], 1)
+        vmax[seq_index] = np.percentile(x[:, seq_index], 99)
+    fig_path = os.path.join(outdir, 'tsne_all_cells')
+    plot_tsne_grid(x_tsne, x_for_tsne, (6,7), fig_path, labels=labels, fig_size=(20, 20),
+                   point_size=5)
+
     return_filters = []
     for i_filter in keep_idx:
         w = filters[i_filter, :nmark]
@@ -265,16 +287,20 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         # skip a filter if it does not select any cell
         if x1.shape[0] == 0:
             continue
-        else:
-            return_filters.append((i_filter, t))
-            # plot a cell filter response map for the filter
-            # do it on a subset of the cells, so that it is relatively fast
-            if plot_tsne:
-                proj = TSNE(n_components=2, random_state=0)
-                x_2D = proj.fit_transform(x[:tsne_ncell])
-                fig_path = os.path.join(outdir, 'cell_filter_response_%d.png' % i_filter)
-                plot_2D_map(x_2D, MinMaxScaler().fit_transform(g.reshape(-1, 1))[:tsne_ncell],
-                            fig_path)
+
+        # else add the filters to selected filters
+        return_filters.append((i_filter, t))
+        # t-SNE plots for characterizing the selected cell population
+        fig_path = os.path.join(outdir, 'tsne_cell_response_filter_%d.png' % i_filter)
+        plot_2D_map(x_tsne, g[tsne_idx], fig_path, s=5)
+        # overlay marker values on TSNE map for selected cells
+        fig_path = os.path.join(outdir, 'tsne_selected cells_filter_%d' % i_filter)
+        g_tsne = g[tsne_idx]
+        x_pos = x_for_tsne[g_tsne > t]
+        x_tsne_pos = x_tsne[g_tsne > t]
+        plot_tsne_selection_grid(x_tsne_pos, x_pos, x_tsne, vmin, vmax, grid_size=(6,7),
+                                 fig_path=fig_path, labels=labels, fig_size=(20, 20), s=5,
+                                 suffix='png')
 
         if clustering is None:
             suffix = 'filter_%d' % i_filter
@@ -327,6 +353,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
                 plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes,
                                      outdir, suffix, stat_test, log_yscale,
                                      group_a, group_b)
+    print 'Done.\n'
     return return_filters
 
 def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_size=(10, 3)):
@@ -352,15 +379,20 @@ def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_
 def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, suffix,
                          stat_test=None, log_yscale=False,
                          group_a='group A', group_b='group B'):
-    ks_list = []
+    ks_values = []
     nmark = x.shape[1]
     for j in range(nmark):
         ks = stats.ks_2samp(xc[:, j], x[:, j])
-        ks_list.append('KS = %.2f' % ks[0])
+        ks_values.append(ks[0])
+
+    # sort markers in decreasing order of KS statistic
+    sorted_idx = np.argsort(np.array(ks_values))[::-1]
+    sorted_labels = [labels[i] for i in sorted_idx]
+    sorted_ks = [('KS = %.2f' % ks_values[i]) for i in sorted_idx]
 
     fig_path = os.path.join(outdir, 'selected_population_distribution_%s.pdf' % suffix)
-    plot_marker_distribution([x, xc], ['all cells', 'selected'],
-                             labels, grid_size=(4, 9), ks_list=ks_list, figsize=(24, 10),
+    plot_marker_distribution([x[:, sorted_idx], xc[:, sorted_idx]], ['all cells', 'selected'],
+                             sorted_labels, grid_size=(4, 9), ks_list=sorted_ks, figsize=(24, 10),
                              colors=['blue', 'red'], fig_path=fig_path, hist=True)
 
     # for binary classification, plot a boxplot of per class frequencies
@@ -532,6 +564,11 @@ def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9, 9),
     fig = plt.figure(figsize=fig_size)
     fig.clf()
     g_i, g_j = grid_size
+    # make sure the grid size is consistent with the number of markers
+    gg = g_i * g_j
+    while gg < ncol:
+        g_i += 1
+        gg = g_i * g_j
     grid = ImageGrid(fig, 111,
                      nrows_ncols=(g_i, g_j),
                      ngrids=ncol,
@@ -546,7 +583,8 @@ def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9, 9),
                      cbar_size="8%",
                      cbar_pad="5%",
                     )
-    for seq_index, ax in enumerate(grid):
+    for seq_index in range(ncol):
+        ax = grid[seq_index]
         ax.text(0, .92, labels[seq_index],
                 horizontalalignment='center',
                 transform=ax.transAxes, size=20, weight='bold')
@@ -563,7 +601,7 @@ def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9, 9),
     plt.close()
 
 def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, grid_size, fig_path,
-                             labels=None, fig_size=(9, 9), suffix='png'):
+                             labels=None, fig_size=(9, 9), s=.5, suffix='png'):
     ncol = x_pos.shape[1]
     if labels is None:
         labels = [str(a) for a in np.range(ncol)]
@@ -571,6 +609,11 @@ def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, grid_size, fig_pat
     fig = plt.figure(figsize=fig_size)
     fig.clf()
     g_i, g_j = grid_size
+    # make sure the grid size is consistent with the number of markers
+    gg = g_i * g_j
+    while gg < ncol:
+        g_i += 1
+        gg = g_i * g_j
     grid = ImageGrid(fig, 111,
                      nrows_ncols=(g_i, g_j),
                      ngrids=ncol,
@@ -585,14 +628,15 @@ def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, grid_size, fig_pat
                      cbar_size="8%",
                      cbar_pad="5%",
                     )
-    for seq_index, ax in enumerate(grid):
+    for seq_index in range(ncol):
+        ax = grid[seq_index]
         ax.text(0, .92, labels[seq_index],
                 horizontalalignment='center',
                 transform=ax.transAxes, size=20, weight='bold')
         a = x_pos[:, seq_index]
-        ax.scatter(z_neg[:, 0], z_neg[:, 1], s=.5, marker='o', c='lightgray',
+        ax.scatter(z_neg[:, 0], z_neg[:, 1], s=s, marker='o', c='lightgray',
                    alpha=0.5, edgecolors='face')
-        im = ax.scatter(z_pos[:, 0], z_pos[:, 1], s=.5, marker='o', c=a, cmap=cm.jet,
+        im = ax.scatter(z_pos[:, 0], z_pos[:, 1], s=s, marker='o', c=a, cmap=cm.jet,
                         edgecolors='face', vmin=vmin[seq_index], vmax=vmax[seq_index])
         ax.cax.colorbar(im)
         clean_axis(ax)
@@ -626,7 +670,7 @@ def plot_2D_map(z, feat, fig_path, s=2, plot_contours=False):
         plt.legend(loc="upper left", markerscale=5., scatterpoints=1, fontsize=10)
     plt.xlabel('tSNE dimension 1', fontsize=20)
     plt.ylabel('tSNE dimension 2', fontsize=20)
-    plt.savefig(fig_path)
+    plt.savefig(fig_path, format=fig_path.split('.')[-1])
     plt.clf()
     plt.close()
 
