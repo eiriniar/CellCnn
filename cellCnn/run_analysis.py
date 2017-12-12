@@ -145,6 +145,10 @@ def main():
         train_phenotypes = [phenotypes[i] for i in train]
         valid_phenotypes = [phenotypes[i] for i in val]
 
+        # always generate multi-cell inputs on a per-sample basis for regression
+        if args.regression:
+            args.per_sample = True
+
         # run CellCnn
         model = CellCnn(ncell=args.ncell,
                         nsubset=args.nsubset,
