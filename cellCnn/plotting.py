@@ -294,7 +294,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         fig_path = os.path.join(outdir, 'tsne_cell_response_filter_%d.png' % i_filter)
         plot_2D_map(x_tsne, g[tsne_idx], fig_path, s=5)
         # overlay marker values on TSNE map for selected cells
-        fig_path = os.path.join(outdir, 'tsne_selected cells_filter_%d' % i_filter)
+        fig_path = os.path.join(outdir, 'tsne_selected_cells_filter_%d' % i_filter)
         g_tsne = g[tsne_idx]
         x_pos = x_for_tsne[g_tsne > t]
         x_tsne_pos = x_tsne[g_tsne > t]
