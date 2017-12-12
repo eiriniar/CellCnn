@@ -11,7 +11,7 @@ import sys
 import cPickle as pickle
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, KFold
 from cellCnn.utils import get_data, save_results, mkdir_p, get_selected_cells
 from cellCnn.plotting import plot_results
 from cellCnn.model import CellCnn
@@ -53,7 +53,7 @@ def main():
                         help='do not z-transform features (mean=0, std=1) prior to training')
     parser.set_defaults(scale=True)
     parser.add_argument('--quant_normed', action='store_true', default=False,
-                        help='input data has been pre-processed via quantile normalization')
+                        help='only use this option if the input data already lies in the [0, 1] interval, e.g. after quantile normalization')
 
     # multi-cell input specific
     parser.add_argument('--ncell', type=int, help='number of cells per multi-cell input',
@@ -133,7 +133,12 @@ def main():
         np.random.seed(args.seed)
         val_perc = 1 - args.train_perc
         n_splits = int(1. / val_perc)
-        skf = StratifiedKFold(n_splits=n_splits, shuffle=True)
+        # stratified CV for classification problems
+        if not args.regression:
+            skf = StratifiedKFold(n_splits=n_splits, shuffle=True)
+        # simple CV for regression problems
+        else:
+            skf = KFold(n_splits=n_splits, shuffle=True)
         train, val = next(skf.split(np.zeros((len(phenotypes), 1)), phenotypes))
         train_samples = [samples[i] for i in train]
         valid_samples = [samples[i] for i in val]
