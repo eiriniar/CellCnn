@@ -268,7 +268,7 @@ minimum size in <cite>new_samples</cite>.</dd>
 <p>This module contains functions for plotting the results of a CellCnn analysis.</p>
 <dl class="function">
 <dt id="cellCnn.plotting.plot_results">
-<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>filter_diff_thres=0.2</em>, <em>filter_response_thres=0</em>, <em>response_grad_cutoff=None</em>, <em>stat_test=None</em>, <em>positive_filters_only=False</em>, <em>log_yscale=False</em>, <em>group_a='group A'</em>, <em>group_b='group B'</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>min_cluster_freq=0.2</em>, <em>plot_tsne=False</em>, <em>tsne_ncell=3000</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>filter_diff_thres=0.2</em>, <em>filter_response_thres=0</em>, <em>response_grad_cutoff=None</em>, <em>stat_test=None</em>, <em>positive_filters_only=False</em>, <em>log_yscale=False</em>, <em>group_a='group A'</em>, <em>group_b='group B'</em>, <em>tsne_ncell=10000</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>min_cluster_freq=0.2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plots the results of a CellCnn analysis.</p>
 <dl class="docutils">
 <dt>Args:</dt>
@@ -354,6 +354,11 @@ logarithmic scale.</dd>
 <dd>Post-processing option for selected cell populations. Default is None.</dd>
 </dl>
 </li>
+<li><dl class="first docutils">
+<dt>tsne_ncell:</dt>
+<dd>Number of cells to include in t-SNE calculations and plots.</dd>
+</dl>
+</li>
 </ul>
 </dd>
 <dt>Returns:</dt>
@@ -397,6 +402,11 @@ This plot helps decide on a cutoff (<code class="docutils literal"><span class="
 discriminative filters.</dd>
 </dl>
 </li>
+<li><dl class="first docutils">
+<dt>tsne_all_cells.png :</dt>
+<dd>Marker distribution overlaid on t-SNE map.</dd>
+</dl>
+</li>
 </ul>
 <p>In addition, the following plots are produced for each selected filter (e.g. filter <code class="docutils literal"><span class="pre">i</span></code>):</p>
 <ul class="last simple">
@@ -417,6 +427,16 @@ filter <code class="docutils literal"><span class="pre">i</span></code> vs all c
 <dt>selected_population_boxplot_filter_i.pdf :</dt>
 <dd>Boxplot of selected cell population frequencies in samples of the different classes.
 Currently only plotted for binary classification problems.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>tsne_cell_response_filter_i.png :</dt>
+<dd>Cell filter response overlaid on t-SNE map.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>tsne_selected_cells_filter_i.png :</dt>
+<dd>Marker distribution of selected cell population overlaid on t-SNE map.</dd>
 </dl>
 </li>
 </ul>
