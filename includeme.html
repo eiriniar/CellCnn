@@ -45,14 +45,24 @@
 <h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
 <p>CellCnn is written in Python2.7. There are several ways to run Python, but we recommend using a virtual environment.
 To set up a virtual environment, you can perform the following steps:</p>
-<p>1. Download the Python2.7 installation script corresponding to your operating system from the [Miniconda website](<a class="reference external" href="https://conda.io/miniconda.html">https://conda.io/miniconda.html</a>).
-For example, for Mac OS it should be called <code class="docutils literal"><span class="pre">Miniconda2-latest-MacOSX-x86_64.sh</span></code>.</p>
-<p>2. Run the installation script (please use the script name corresponding to your operating system):
-<code class="docutils literal"><span class="pre">bash</span> <span class="pre">Miniconda2-latest-MacOSX-x86_64.sh</span></code></p>
-<p>3. Open a new terminal and create a virtual environment for CellCnn, e.g. <code class="docutils literal"><span class="pre">cellcnn_env</span></code>:
-<code class="docutils literal"><span class="pre">conda</span> <span class="pre">create</span> <span class="pre">--name</span> <span class="pre">cellcnn_env</span> <span class="pre">python=2.7</span></code></p>
-<p>4. Now each time that you want to run CellCnn, you need to first activate the virtual environment by running:
-<code class="docutils literal"><span class="pre">source</span> <span class="pre">activate</span> <span class="pre">cellcnn_env</span></code></p>
+<ol class="arabic simple">
+<li>Download the Python2.7 installation script corresponding to your operating system from <a class="reference external" href="https://conda.io/miniconda.html">https://conda.io/miniconda.html</a> . For example, for Mac OS it should be called “Miniconda2-latest-MacOSX-x86_64.sh”.</li>
+<li><dl class="first docutils">
+<dt>Run the installation script (please use the script name corresponding to your operating system):</dt>
+<dd><code class="docutils literal"><span class="pre">bash</span> <span class="pre">Miniconda2-latest-MacOSX-x86_64.sh</span></code></dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Open a new terminal and create a virtual environment for CellCnn, e.g. “cellcnn_env”:</dt>
+<dd><code class="docutils literal"><span class="pre">conda</span> <span class="pre">create</span> <span class="pre">--name</span> <span class="pre">cellcnn_env</span> <span class="pre">python=2.7</span></code></dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>Activate the virtual environment:</dt>
+<dd><code class="docutils literal"><span class="pre">source</span> <span class="pre">activate</span> <span class="pre">cellcnn_env</span></code></dd>
+</dl>
+</li>
+</ol>
 <hr class="docutils" />
 <p>After having Python2.7 running on your system, please do the following to install CellCnn:</p>
 <ol class="arabic simple">
@@ -95,7 +105,8 @@ To get a list of command line options please run:</p>
 from the command line, you can run the following (assuming your current directory is <code class="docutils literal"><span class="pre">CellCnn/cellCnn/examples</span></code>):</p>
 <p><code class="docutils literal"><span class="pre">python</span> <span class="pre">../run_analysis.py</span> <span class="pre">-f</span> <span class="pre">NK_fcs_samples_with_labels.csv</span> <span class="pre">-m</span> <span class="pre">NK_markers.csv</span> <span class="pre">-i</span> <span class="pre">NK_cell_dataset/gated_NK/</span> <span class="pre">-o</span> <span class="pre">outdir_NK</span> <span class="pre">--export_csv</span> <span class="pre">--group_a</span> <span class="pre">CMV-</span> <span class="pre">--group_b</span> <span class="pre">CMV+</span> <span class="pre">--verbose</span> <span class="pre">0</span></code></p>
 <p>The above command performs a binary classification CellCnn analysis, exports the learned filter weights as CSV files in the directory <code class="docutils literal"><span class="pre">outdir_NK/exported_filter_weights</span></code> and generates result plots in <code class="docutils literal"><span class="pre">outdir_NK/plots</span></code>. The following plots are generated:</p>
-<p>###### filter_plots</p>
+<div class="section" id="filter-plots">
+<h3>filter_plots<a class="headerlink" href="#filter-plots" title="Permalink to this headline">¶</a></h3>
 <ul class="simple">
 <li><dl class="first docutils">
 <dt>clustered_filter_weights.pdf :</dt>
@@ -117,10 +128,6 @@ other memebers of the cluster). We call these selected filters “consensus filt
 <dd>Filter weight vectors of the network that achieved the highest validation accuracy.</dd>
 </dl>
 </li>
-</ul>
-<p>###### training_plots
-These plots are generated on the basis of samples used for model training.</p>
-<ul class="simple">
 <li><dl class="first docutils">
 <dt>filter_response_differences.pdf :</dt>
 <dd>Difference in cell filter response between classes for each consensus filter.
@@ -132,11 +139,16 @@ for validation samples not belonging to the filter-specific class (<code class="
 The difference is computed as <code class="docutils literal"><span class="pre">v1</span> <span class="pre">-</span> <span class="pre">v0</span></code>. For regression problems, we cannot compute
 a difference between classes. Instead we compute Kendall’s rank correlation coefficient
 between the predictions of each individual filter (value after the pooling layer) and
-the true response valuees.
-This plot helps decide on a cutoff (<code class="docutils literal"><span class="pre">filter_diff_thres</span></code> parameter) for selecting
-discriminative filters.</dd>
+the true response values. This plot helps decide on a cutoff (<code class="docutils literal"><span class="pre">filter_diff_thres</span></code> parameter)
+for selecting discriminative filters.</dd>
 </dl>
 </li>
+</ul>
+</div>
+<div class="section" id="training-plots">
+<h3>training_plots<a class="headerlink" href="#training-plots" title="Permalink to this headline">¶</a></h3>
+<p>These plots are generated on the basis of samples used for model training.</p>
+<ul class="simple">
 <li><dl class="first docutils">
 <dt>tsne_all_cells.png :</dt>
 <dd>Marker distribution overlaid on t-SNE map.</dd>
@@ -175,14 +187,17 @@ For regression settings, a scatter plot of selected cell population frequencies 
 </dl>
 </li>
 </ul>
-<p>###### validation_plots
-Same as the training_plots, but generated on the basis of samples used for model validation.</p>
+</div>
+<div class="section" id="validation-plots">
+<h3>validation_plots<a class="headerlink" href="#validation-plots" title="Permalink to this headline">¶</a></h3>
+<p>Same as the training_plots, but generated on the basis of samples used for model validation.</p>
 <hr class="docutils" />
 <p>After performing model training once, you can refine the plots with different cutoff values for the selected filters and
 cell populations. Training does not have to be repeated for refining the plots. The pre-computed results can be used with the option <code class="docutils literal"><span class="pre">--load_results</span></code>.</p>
 <p>Another relevant argument is <code class="docutils literal"><span class="pre">--export_selected_cells</span></code>, which produces a CSV result file for each input FCS file and stores it in <code class="docutils literal"><span class="pre">outdir/selected_cells</span></code>. Rows in the CSV result file correspond to cells in the order found in the FCS input file.
 The CSV result file contains two columns per selected filter, the first indicating the cell filter response as a continuous value and the second containing a binary value resulting from thresholding the continuous cell filter response. This later column is an indicator of whether a cell belongs to the cell population selected by a particular filter.</p>
 <p><code class="docutils literal"><span class="pre">python</span> <span class="pre">../run_analysis.py</span> <span class="pre">-f</span> <span class="pre">NK_fcs_samples_with_labels.csv</span> <span class="pre">-m</span> <span class="pre">NK_markers.csv</span> <span class="pre">-i</span> <span class="pre">NK_cell_dataset/gated_NK/</span> <span class="pre">-o</span> <span class="pre">outdir_NK</span> <span class="pre">--group_a</span> <span class="pre">CMV-</span> <span class="pre">--group_b</span> <span class="pre">CMV+</span> <span class="pre">--filter_response_thres</span> <span class="pre">0.3</span> <span class="pre">--load_results</span> <span class="pre">--export_selected_cells</span></code></p>
+</div>
 </div>
 <div class="section" id="documentation">
 <h2>Documentation<a class="headerlink" href="#documentation" title="Permalink to this headline">¶</a></h2>
@@ -200,7 +215,12 @@ The CSV result file contains two columns per selected filter, the first indicati
   <ul>
 <li><a class="reference internal" href="#">CellCnn</a><ul>
 <li><a class="reference internal" href="#installation">Installation</a></li>
-<li><a class="reference internal" href="#usage">Usage</a></li>
+<li><a class="reference internal" href="#usage">Usage</a><ul>
+<li><a class="reference internal" href="#filter-plots">filter_plots</a></li>
+<li><a class="reference internal" href="#training-plots">training_plots</a></li>
+<li><a class="reference internal" href="#validation-plots">validation_plots</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#documentation">Documentation</a></li>
 </ul>
 </li>
