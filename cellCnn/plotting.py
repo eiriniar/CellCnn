@@ -116,7 +116,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
             The difference is computed as ``v1 - v0``. For regression problems, we cannot compute
             a difference between classes. Instead we compute Kendall's rank correlation coefficient
             between the predictions of each individual filter (value after the pooling layer) and
-            the true response valuees.
+            the true response values.
             This plot helps decide on a cutoff (``filter_diff_thres`` parameter) for selecting
             discriminative filters.
         - tsne_all_cells.png :
@@ -151,69 +151,18 @@ def plot_results(results, samples, phenotypes, labels, outdir,
     # number of measured markers
     nmark = samples[0].shape[1]
 
-    if show_filters:
-        plot_filters(results, labels, outdir)
-
     if results['selected_filters'] is not None:
         print 'Loading the weights of consensus filters.'
         filters = results['selected_filters']
     else:
         sys.exit('Consensus filters were not found.')
 
-    # select the discriminative filters based on the validation set
-    if 'filter_diff' in results:
-        filter_diff = results['filter_diff']
-
-        # do we want to consider negative filters?
-        if positive_filters_only:
-            filter_diff = filter_diff * np.sign(filters[:, -1])
-        sorted_idx = np.argsort(filter_diff)[::-1]
-        filter_diff = filter_diff[sorted_idx]
-        keep_idx = [sorted_idx[0]]
-        for i in range(0, len(filter_diff)-1):
-            if (filter_diff[i] - filter_diff[i+1]) < filter_diff_thres * filter_diff[i]:
-                keep_idx.append(sorted_idx[i+1])
-            else:
-                break
-        plt.figure()
-        sns.set_style('whitegrid')
-        plt.plot(range(len(filter_diff)), filter_diff, '--')
-        plt.xticks(range(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
-                   rotation='vertical')
-        plt.ylabel('average cell filter response difference between classes')
-        sns.despine()
-        plt.savefig(os.path.join(outdir, 'filter_response_differences.pdf'), format='pdf')
-        plt.clf()
-        plt.close()
-
-    elif 'filter_tau' in results:
-        filter_diff = results['filter_tau']
-
-        # do we want to consider negative filters?
-        if positive_filters_only:
-            filter_diff = filter_diff * np.sign(filters[:, -1])
-        sorted_idx = np.argsort(filter_diff)[::-1]
-        filter_diff = filter_diff[sorted_idx]
-        keep_idx = [sorted_idx[0]]
-        for i in range(0, len(filter_diff)-1):
-            if (filter_diff[i] - filter_diff[i+1]) < filter_diff_thres * filter_diff[i]:
-                keep_idx.append(sorted_idx[i+1])
-            else:
-                break
-        plt.figure()
-        sns.set_style('whitegrid')
-        plt.plot(range(len(filter_diff)), filter_diff, '--')
-        plt.xticks(range(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
-                   rotation='vertical')
-        plt.ylabel('Kendalls tau')
-        sns.despine()
-        plt.savefig(os.path.join(outdir, 'filter_response_Kendall_tau.pdf'), format='pdf')
-        plt.clf()
-        plt.close()
-
-    # if no validation samples were provided, keep all consensus filters
-    else:
-        keep_idx = range(filters.shape[0]) 
+    if show_filters:
+        plot_filters(results, labels, outdir)
+    # get discriminative filter indices in consensus matrix
+    keep_idx = discriminative_filters(results, outdir, filter_diff_thres,
+                                      positive_filters_only=positive_filters_only,
+                                      show_filters=show_filters)
 
     # encode the sample and sample-phenotype for each cell
     sample_sizes = []
@@ -345,6 +294,68 @@ def plot_results(results, samples, phenotypes, labels, outdir,
                                      group_a, group_b, group_names, regression)
     print 'Done.\n'
     return return_filters
+
+
+def discriminative_filters(results, outdir, filter_diff_thres, positive_filters_only=False, show_filters=True):
+    mkdir_p(outdir)
+    # select the discriminative filters based on the validation set
+    if 'filter_diff' in results:
+        filter_diff = results['filter_diff']
+
+        # do we want to consider negative filters?
+        if positive_filters_only:
+            filter_diff = filter_diff * np.sign(filters[:, -1])
+        sorted_idx = np.argsort(filter_diff)[::-1]
+        filter_diff = filter_diff[sorted_idx]
+        keep_idx = [sorted_idx[0]]
+        for i in range(0, len(filter_diff)-1):
+            if (filter_diff[i] - filter_diff[i+1]) < filter_diff_thres * filter_diff[i]:
+                keep_idx.append(sorted_idx[i+1])
+            else:
+                break
+        if show_filters:
+            plt.figure()
+            sns.set_style('whitegrid')
+            plt.plot(range(len(filter_diff)), filter_diff, '--')
+            plt.xticks(range(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
+                       rotation='vertical')
+            plt.ylabel('average cell filter response difference between classes')
+            sns.despine()
+            plt.savefig(os.path.join(outdir, 'filter_response_differences.pdf'), format='pdf')
+            plt.clf()
+            plt.close()
+
+    elif 'filter_tau' in results:
+        filter_diff = results['filter_tau']
+
+        # do we want to consider negative filters?
+        if positive_filters_only:
+            filter_diff = filter_diff * np.sign(filters[:, -1])
+        sorted_idx = np.argsort(filter_diff)[::-1]
+        filter_diff = filter_diff[sorted_idx]
+        keep_idx = [sorted_idx[0]]
+        for i in range(0, len(filter_diff)-1):
+            if (filter_diff[i] - filter_diff[i+1]) < filter_diff_thres * filter_diff[i]:
+                keep_idx.append(sorted_idx[i+1])
+            else:
+                break
+        if show_filters:
+            plt.figure()
+            sns.set_style('whitegrid')
+            plt.plot(range(len(filter_diff)), filter_diff, '--')
+            plt.xticks(range(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
+                       rotation='vertical')
+            plt.ylabel('Kendalls tau')
+            sns.despine()
+            plt.savefig(os.path.join(outdir, 'filter_response_differences.pdf'), format='pdf')
+            plt.clf()
+            plt.close()
+
+    # if no validation samples were provided, keep all consensus filters
+    else:
+        filters = results['selected_filters']
+        keep_idx = range(filters.shape[0])
+    return keep_idx
 
 
 def plot_filters(results, labels, outdir):

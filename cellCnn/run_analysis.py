@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold, KFold
 from cellCnn.utils import get_data, save_results, mkdir_p, get_selected_cells
-from cellCnn.plotting import plot_results, plot_filters
+from cellCnn.plotting import plot_results, plot_filters, discriminative_filters
 from cellCnn.model import CellCnn
 
 
@@ -195,6 +195,10 @@ def main():
     if args.plot or args.export_selected_cells:
         plotdir = os.path.join(args.outdir, 'plots')
         plot_filters(results, marker_names, os.path.join(plotdir, 'filter_plots'))
+        _v = discriminative_filters(results, os.path.join(plotdir, 'filter_plots'),
+                                    filter_diff_thres=args.filter_diff_thres,
+                                    positive_filters_only=args.positive_filters_only,
+                                    show_filters=True)
         filter_info = plot_results(results, train_samples, train_phenotypes,
                                    marker_names, os.path.join(plotdir, 'training_plots'),
                                    filter_diff_thres=args.filter_diff_thres,

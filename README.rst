@@ -81,12 +81,6 @@ filter_plots
     other memebers of the cluster). We call these selected filters "consensus filters".
 - best_net_weights.pdf :
     Filter weight vectors of the network that achieved the highest validation accuracy.
-
-training_plots
-""""""""""""""
-
-These plots are generated on the basis of samples used for model training.
-
 - filter_response_differences.pdf :
     Difference in cell filter response between classes for each consensus filter.
     To compute this difference for a filter, we first choose a filter-specific class, that's
@@ -97,9 +91,14 @@ These plots are generated on the basis of samples used for model training.
     The difference is computed as ``v1 - v0``. For regression problems, we cannot compute
     a difference between classes. Instead we compute Kendall's rank correlation coefficient
     between the predictions of each individual filter (value after the pooling layer) and
-    the true response valuees.
-    This plot helps decide on a cutoff (``filter_diff_thres`` parameter) for selecting
-    discriminative filters.
+    the true response values. This plot helps decide on a cutoff (``filter_diff_thres`` parameter)
+    for selecting discriminative filters.
+
+training_plots
+""""""""""""""
+
+These plots are generated on the basis of samples used for model training.
+
 - tsne_all_cells.png :
     Marker distribution overlaid on t-SNE map.
 
@@ -109,18 +108,14 @@ In addition, the following plots are produced for each selected filter (e.g. fil
     Cumulative distribution function of cell filter response for filter ``i``. This plot
     helps decide on a cutoff (``filter_response_thres`` parameter) for selecting the
     responding cell population.
-
 - selected_population_distribution_filter_i.pdf :
     Histograms of univariate marker expression profiles for the cell population selected by
     filter ``i`` vs all cells.
-
 - selected_population_frequencies_filter_i.pdf :
     Boxplot of selected cell population frequencies in samples of the different classes, if running a classification problem.
     For regression settings, a scatter plot of selected cell population frequencies vs response variable is generated.
-
 - tsne_cell_response_filter_i.png :
     Cell filter response overlaid on t-SNE map.
-
 - tsne_selected_cells_filter_i.png :
     Marker distribution of selected cell population overlaid on t-SNE map.
 
