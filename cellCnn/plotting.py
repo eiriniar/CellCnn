@@ -34,9 +34,9 @@ except ImportError:
 def plot_results(results, samples, phenotypes, labels, outdir,
                  filter_diff_thres=.2, filter_response_thres=0, response_grad_cutoff=None,
                  stat_test=None, positive_filters_only=False, log_yscale=False,
-                 group_a='group A', group_b='group B', tsne_ncell=10000,
-                 clustering=None, add_filter_response=False,
-                 percentage_drop_cluster=.1, min_cluster_freq=0.2):
+                 group_a='group A', group_b='group B', group_names=None, tsne_ncell=10000,
+                 regression=False, clustering=None, add_filter_response=False,
+                 percentage_drop_cluster=.1, min_cluster_freq=0.2, show_filters=True):
 
     """ Plots the results of a CellCnn analysis.
 
@@ -72,6 +72,8 @@ def plot_results(results, samples, phenotypes, labels, outdir,
             Name of the first class.
         - group_b :
             Name of the second class.
+        - group_names :
+            List of names for the different phenotype classes.
         - positive_filters_only :
             If True, only consider filters associated with higher cell population frequency in the
             positive class.
@@ -80,8 +82,12 @@ def plot_results(results, samples, phenotypes, labels, outdir,
             logarithmic scale.
         - clustering: None | 'dbscan' | 'louvain'
             Post-processing option for selected cell populations. Default is None.
-        - tsne_ncell:
+        - tsne_ncell :
             Number of cells to include in t-SNE calculations and plots.
+        - regression :
+            Whether it is a regression problem.
+        - show_filters :
+            Whether to plot learned filter weights.
 
     Returns:
         A list with the indices and corresponding cell filter response thresholds of selected
@@ -127,9 +133,10 @@ def plot_results(results, samples, phenotypes, labels, outdir,
             Histograms of univariate marker expression profiles for the cell population selected by
             filter ``i`` vs all cells.
 
-        - selected_population_boxplot_filter_i.pdf :
-            Boxplot of selected cell population frequencies in samples of the different classes.
-            Currently only plotted for binary classification problems.
+        - selected_population_frequencies_filter_i.pdf :
+            Boxplot of selected cell population frequencies in samples of the different classes,
+            if running a classification problem. For regression settings, a scatter plot of selected
+            cell population frequencies vs response variable is generated.
 
         - tsne_cell_response_filter_i.png :
             Cell filter response overlaid on t-SNE map.
@@ -144,31 +151,14 @@ def plot_results(results, samples, phenotypes, labels, outdir,
     # number of measured markers
     nmark = samples[0].shape[1]
 
-    # plot the filter weights of the best network
-    w_best = results['w_best_net']
-    idx_except_bias = np.array(range(nmark) + range(nmark+1, w_best.shape[1]))
-    nc = w_best.shape[1] - (nmark+1)
-    labels_except_bias = labels + ['out %d' % i for i in range(nc)]
-    w_best = w_best[:, idx_except_bias]
-    fig_path = os.path.join(outdir, 'best_net_weights.pdf')
-    plot_nn_weights(w_best, labels_except_bias, fig_path, fig_size=(10, 10))
+    if show_filters:
+        plot_filters(results, labels, outdir)
 
-    # plot the selected filters
     if results['selected_filters'] is not None:
         print 'Loading the weights of consensus filters.'
-        w = results['selected_filters'][:, idx_except_bias]
-        fig_path = os.path.join(outdir, 'consensus_filter_weights.pdf')
-        plot_nn_weights(w, labels_except_bias, fig_path, fig_size=(10, 10))
         filters = results['selected_filters']
     else:
         sys.exit('Consensus filters were not found.')
-
-    # plot the filter clustering
-    cl = results['clustering_result']
-    cl_w = cl['w'][:, idx_except_bias]
-    fig_path = os.path.join(outdir, 'clustered_filter_weights.pdf')
-    plot_nn_weights(cl_w, labels_except_bias, fig_path, row_linkage=cl['cluster_linkage'],
-                    y_labels=cl['cluster_assignments'], fig_size=(10, 10))
 
     # select the discriminative filters based on the validation set
     if 'filter_diff' in results:
@@ -306,7 +296,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
             suffix = 'filter_%d' % i_filter
             plot_selected_subset(x1, z1, x, labels, sample_sizes, phenotypes,
                                  outdir, suffix, stat_test, log_yscale,
-                                 group_a, group_b)
+                                 group_a, group_b, group_names, regression)
         else:
             if clustering == 'louvain':
                 print 'Creating a k-NN graph with %d/%d cells...' % (x1.shape[0], x.shape[0])
@@ -352,9 +342,36 @@ def plot_results(results, samples, phenotypes, labels, outdir,
                 suffix = 'filter_%d_cluster_%d' % (i_filter, cl_id)
                 plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes,
                                      outdir, suffix, stat_test, log_yscale,
-                                     group_a, group_b)
+                                     group_a, group_b, group_names, regression)
     print 'Done.\n'
     return return_filters
+
+
+def plot_filters(results, labels, outdir):
+    mkdir_p(outdir)
+    nmark = len(labels)
+    # plot the filter weights of the best network
+    w_best = results['w_best_net']
+    idx_except_bias = np.array(range(nmark) + range(nmark+1, w_best.shape[1]))
+    nc = w_best.shape[1] - (nmark+1)
+    labels_except_bias = labels + ['out %d' % i for i in range(nc)]
+    w_best = w_best[:, idx_except_bias]
+    fig_path = os.path.join(outdir, 'best_net_weights.pdf')
+    plot_nn_weights(w_best, labels_except_bias, fig_path, fig_size=(10, 10))
+    # plot the filter clustering
+    cl = results['clustering_result']
+    cl_w = cl['w'][:, idx_except_bias]
+    fig_path = os.path.join(outdir, 'clustered_filter_weights.pdf')
+    plot_nn_weights(cl_w, labels_except_bias, fig_path, row_linkage=cl['cluster_linkage'],
+                    y_labels=cl['cluster_assignments'], fig_size=(10, 10))
+    # plot the selected filters
+    if results['selected_filters'] is not None:
+        w = results['selected_filters'][:, idx_except_bias]
+        fig_path = os.path.join(outdir, 'consensus_filter_weights.pdf')
+        plot_nn_weights(w, labels_except_bias, fig_path, fig_size=(10, 10))
+        filters = results['selected_filters']
+    else:
+        sys.exit('Consensus filters were not found.')
 
 def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_size=(10, 3)):
     if y_labels is None:
@@ -364,7 +381,7 @@ def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_
         plt.figure(figsize=fig_size)
         clmap = sns.clustermap(pd.DataFrame(w, columns=x_labels),
                                method='average', metric='cosine', row_linkage=row_linkage,
-                               col_cluster=False, robust=True, yticklabels=y_labels)
+                               col_cluster=False, robust=True, yticklabels=y_labels, cmap="RdBu_r")
         plt.setp(clmap.ax_heatmap.yaxis.get_majorticklabels(), rotation=0)
         plt.setp(clmap.ax_heatmap.xaxis.get_majorticklabels(), rotation=90)
         clmap.cax.set_visible(True)
@@ -378,7 +395,8 @@ def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_
 
 def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, suffix,
                          stat_test=None, log_yscale=False,
-                         group_a='group A', group_b='group B'):
+                         group_a='group A', group_b='group B', group_names=None,
+                         regression=False):
     ks_values = []
     nmark = x.shape[1]
     for j in range(nmark):
@@ -395,29 +413,60 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
                              sorted_labels, grid_size=(4, 9), ks_list=sorted_ks, figsize=(24, 10),
                              colors=['blue', 'red'], fig_path=fig_path, hist=True)
 
-    # for binary classification, plot a boxplot of per class frequencies
-    if len(np.unique(phenotypes)) == 2:
-        freq_a, freq_b = [], []
+    # for classification, plot a boxplot of per class frequencies
+    # for regression, make a biaxial plot (phenotype vs. frequency)
+
+    if regression:
+        frequencies = []
+        for i, (n, y_i) in enumerate(zip(sample_sizes, phenotypes)):
+            freq = 100. * np.sum(zc == i) / n
+            frequencies.append(freq)
+
+        _fig, ax = plt.subplots(figsize=(2.5, 2.5))
+        plt.scatter(phenotypes, frequencies)
+        if log_yscale:
+            ax.set_yscale('log')
+        plt.ylim(0, np.max(frequencies) + 1)
+        plt.ylabel("selected population frequency (%)")
+        plt.xlabel("response variable")
+        sns.despine()
+        plt.tight_layout()
+        fig_path = os.path.join(outdir, 'selected_population_frequencies_%s.pdf' % suffix)
+        plt.savefig(fig_path)
+        plt.clf()
+        plt.close()
+    else:
+        n_pheno = len(np.unique(phenotypes))
+        frequencies = dict()
         for i, (n, y_i) in enumerate(zip(sample_sizes, phenotypes)):
             freq = 100. * np.sum(zc == i) / n
             assert freq <= 100
-            if y_i == 0:
-                freq_a.append(freq)
+            if y_i in frequencies:
+                frequencies[y_i].append(freq)
             else:
-                freq_b.append(freq)
-        # perform a statistical test
-        if stat_test is None:
-            pval = None
-        elif stat_test == 'mannwhitneyu':
-            _t, pval = stats.mannwhitneyu(freq_a, freq_b)
-        elif stat_test == 'ttest':
-            _t, pval = stats.ttest_ind(freq_a, freq_b)
+                frequencies[y_i] = [freq]
+        # optionally, perform a statistical test
+        if (n_pheno == 2) and (stat_test is not None):
+            freq_a, freq_b = frequencies[0], frequencies[1]
+            if stat_test == 'mannwhitneyu':
+                _t, pval = stats.mannwhitneyu(freq_a, freq_b)
+            elif stat_test == 'ttest':
+                _t, pval = stats.ttest_ind(freq_a, freq_b)
+            else:
+                _t, pval = stats.ttest_ind(freq_a, freq_b)
         else:
-            _t, pval = stats.ttest_ind(freq_a, freq_b)
+            pval = None
 
         # make a boxplot with error bars
-        box_grade = [group_a] * len(freq_a) + [group_b] * len(freq_b)
-        box_data = np.hstack([freq_a, freq_b])
+        if group_names is None:
+            if n_pheno == 2:
+                group_names = [group_a, group_b]
+            else:
+                group_names = ['group %d' % (y_i+1) for y_i in range(n_pheno)]
+        box_grade = []
+        for group_name, y_i in zip(group_names, range(n_pheno)):
+            box_grade += [group_name] * len(frequencies[y_i])
+        box_data = np.hstack([np.array(frequencies[y_i]) for y_i in range(n_pheno)])
         box = pd.DataFrame(np.array(zip(box_grade, box_data)),
                            columns=['group', 'selected population frequency (%)'])
         box['selected population frequency (%)'] = \
@@ -432,10 +481,10 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
                     transform=ax.transAxes, size=8, weight='bold')
         if log_yscale:
             ax.set_yscale('log')
-        plt.ylim(0, np.max(freq_a + freq_b) + 1)
+        plt.ylim(0, np.max(box_data) + 1)
         sns.despine()
         plt.tight_layout()
-        fig_path = os.path.join(outdir, 'selected_population_boxplot_%s.pdf' % suffix)
+        fig_path = os.path.join(outdir, 'selected_population_frequencies_%s.pdf' % suffix)
         plt.savefig(fig_path)
         plt.clf()
         plt.close()

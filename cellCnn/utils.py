@@ -19,8 +19,8 @@ from scipy.cluster.hierarchy import linkage
 from scipy.cluster.hierarchy import fcluster
 from scipy import stats
 from scipy.sparse import coo_matrix
+import fcm
 try:
-    import fcm
     import igraph
 except ImportError:
     pass
@@ -49,7 +49,7 @@ def get_data(indir, info, marker_names, do_arcsinh, cofactor):
     return sample_list, list(phenotypes)
 
 def save_results(results, outdir, labels):
-    csv_dir = os.path.join(outdir, 'csv_results')
+    csv_dir = os.path.join(outdir, 'exported_filter_weights')
     mkdir_p(csv_dir)
     nmark = len(labels)
     nc = results['w_best_net'].shape[1] - (nmark+1)

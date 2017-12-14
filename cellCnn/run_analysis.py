@@ -13,7 +13,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold, KFold
 from cellCnn.utils import get_data, save_results, mkdir_p, get_selected_cells
-from cellCnn.plotting import plot_results
+from cellCnn.plotting import plot_results, plot_filters
 from cellCnn.model import CellCnn
 
 
@@ -114,6 +114,8 @@ def main():
                         help='name of the first class')
     parser.add_argument('--group_b', default='group B',
                         help='name of the second class')
+    parser.add_argument('--group_names', nargs='+', default=None,
+                        help='list of class names')
     parser.add_argument('--tsne_ncell', type=int, help='number of cells to include in t-SNE maps',
                         default=10000)
     args = parser.parse_args()
@@ -128,27 +130,35 @@ def main():
     samples, phenotypes = get_data(args.indir, fcs_info, marker_names,
                                    args.arcsinh, args.cofactor)
 
+    # generate training/validation sets
+    np.random.seed(args.seed)
+    val_perc = 1 - args.train_perc
+    n_splits = int(1. / val_perc)
+    # stratified CV for classification problems
+    if not args.regression:
+        skf = StratifiedKFold(n_splits=n_splits, shuffle=True)
+    # simple CV for regression problems
+    else:
+        skf = KFold(n_splits=n_splits, shuffle=True)
+    train, val = next(skf.split(np.zeros((len(phenotypes), 1)), phenotypes))
+    train_samples = [samples[i] for i in train]
+    valid_samples = [samples[i] for i in val]
+    train_phenotypes = [phenotypes[i] for i in train]
+    valid_phenotypes = [phenotypes[i] for i in val]
+
+    print '\nSamples used for model training:'
+    for i in train:
+        print fcs_info[i]
+    print '\nSamples used for validation:'
+    for i in val:
+        print fcs_info[i]
+    print
+
+    # always generate multi-cell inputs on a per-sample basis for regression
+    if args.regression:
+        args.per_sample = True
+
     if not args.load_results:
-        # generate training/validation sets
-        np.random.seed(args.seed)
-        val_perc = 1 - args.train_perc
-        n_splits = int(1. / val_perc)
-        # stratified CV for classification problems
-        if not args.regression:
-            skf = StratifiedKFold(n_splits=n_splits, shuffle=True)
-        # simple CV for regression problems
-        else:
-            skf = KFold(n_splits=n_splits, shuffle=True)
-        train, val = next(skf.split(np.zeros((len(phenotypes), 1)), phenotypes))
-        train_samples = [samples[i] for i in train]
-        valid_samples = [samples[i] for i in val]
-        train_phenotypes = [phenotypes[i] for i in train]
-        valid_phenotypes = [phenotypes[i] for i in val]
-
-        # always generate multi-cell inputs on a per-sample basis for regression
-        if args.regression:
-            args.per_sample = True
-
         # run CellCnn
         model = CellCnn(ncell=args.ncell,
                         nsubset=args.nsubset,
@@ -183,15 +193,30 @@ def main():
 
     # plot results
     if args.plot or args.export_selected_cells:
-        mkdir_p(os.path.join(args.outdir, 'plots'))
-        filter_info = plot_results(results, samples, phenotypes,
-                                   marker_names, os.path.join(args.outdir, 'plots'),
+        plotdir = os.path.join(args.outdir, 'plots')
+        plot_filters(results, marker_names, os.path.join(plotdir, 'filter_plots'))
+        filter_info = plot_results(results, train_samples, train_phenotypes,
+                                   marker_names, os.path.join(plotdir, 'training_plots'),
                                    filter_diff_thres=args.filter_diff_thres,
                                    filter_response_thres=args.filter_response_thres,
                                    positive_filters_only=args.positive_filters_only,
                                    stat_test=args.stat_test,
                                    group_a=args.group_a, group_b=args.group_b,
-                                   tsne_ncell=args.tsne_ncell)
+                                   group_names=args.group_names,
+                                   tsne_ncell=args.tsne_ncell,
+                                   regression=args.regression,
+                                   show_filters=False)
+        _v = plot_results(results, valid_samples, valid_phenotypes,
+                          marker_names, os.path.join(plotdir, 'validation_plots'),
+                          filter_diff_thres=args.filter_diff_thres,
+                          filter_response_thres=args.filter_response_thres,
+                          positive_filters_only=args.positive_filters_only,
+                          stat_test=args.stat_test,
+                          group_a=args.group_a, group_b=args.group_b,
+                          group_names=args.group_names,
+                          tsne_ncell=args.tsne_ncell,
+                          regression=args.regression,
+                          show_filters=False)
         if args.export_selected_cells:
             csv_dir = os.path.join(args.outdir, 'selected_cells')
             mkdir_p(csv_dir)
