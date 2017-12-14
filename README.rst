@@ -9,17 +9,16 @@ Installation
 CellCnn is written in Python2.7. There are several ways to run Python, but we recommend using a virtual environment.
 To set up a virtual environment, you can perform the following steps:
 
-1. Download the Python2.7 installation script corresponding to your operating system from the [Miniconda website](https://conda.io/miniconda.html).
-For example, for Mac OS it should be called ``Miniconda2-latest-MacOSX-x86_64.sh``.
+1. Download the Python2.7 installation script corresponding to your operating system from https://conda.io/miniconda.html . For example, for Mac OS it should be called "Miniconda2-latest-MacOSX-x86_64.sh".
 
 2. Run the installation script (please use the script name corresponding to your operating system):
-``bash Miniconda2-latest-MacOSX-x86_64.sh``
+    ``bash Miniconda2-latest-MacOSX-x86_64.sh``
 
-3. Open a new terminal and create a virtual environment for CellCnn, e.g. ``cellcnn_env``:
-``conda create --name cellcnn_env python=2.7``
+3. Open a new terminal and create a virtual environment for CellCnn, e.g. "cellcnn_env":
+    ``conda create --name cellcnn_env python=2.7``
 
-4. Now each time that you want to run CellCnn, you need to first activate the virtual environment by running:
-``source activate cellcnn_env``
+4. Activate the virtual environment:
+    ``source activate cellcnn_env``
 
 ----
 
@@ -68,7 +67,8 @@ from the command line, you can run the following (assuming your current director
 
 The above command performs a binary classification CellCnn analysis, exports the learned filter weights as CSV files in the directory ``outdir_NK/exported_filter_weights`` and generates result plots in ``outdir_NK/plots``. The following plots are generated:
 
-###### filter_plots
+filter_plots
+""""""""""""
 
 - clustered_filter_weights.pdf :
     Filter weight vectors from all trained networks that pass a validation accuracy
@@ -82,7 +82,9 @@ The above command performs a binary classification CellCnn analysis, exports the
 - best_net_weights.pdf :
     Filter weight vectors of the network that achieved the highest validation accuracy.
 
-###### training_plots
+training_plots
+""""""""""""""
+
 These plots are generated on the basis of samples used for model training.
 
 - filter_response_differences.pdf :
@@ -122,7 +124,9 @@ In addition, the following plots are produced for each selected filter (e.g. fil
 - tsne_selected_cells_filter_i.png :
     Marker distribution of selected cell population overlaid on t-SNE map.
 
-###### validation_plots
+validation_plots
+""""""""""""""""
+
 Same as the training_plots, but generated on the basis of samples used for model validation.
 
 ----
