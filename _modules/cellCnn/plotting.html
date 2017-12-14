@@ -1,16 +1,13 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
     <title>cellCnn.plotting &#8212; CellCnn 0.1 documentation</title>
-    
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '../../',
@@ -24,7 +21,7 @@
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
    
@@ -34,7 +31,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">
+  <body>
   
 
     <div class="document">
@@ -79,9 +76,9 @@
 <div class="viewcode-block" id="plot_results"><a class="viewcode-back" href="../../code.html#cellCnn.plotting.plot_results">[docs]</a><span class="k">def</span> <span class="nf">plot_results</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span>
                  <span class="n">filter_diff_thres</span><span class="o">=.</span><span class="mi">2</span><span class="p">,</span> <span class="n">filter_response_thres</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">response_grad_cutoff</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">stat_test</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">positive_filters_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">log_yscale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">group_a</span><span class="o">=</span><span class="s1">&#39;group A&#39;</span><span class="p">,</span> <span class="n">group_b</span><span class="o">=</span><span class="s1">&#39;group B&#39;</span><span class="p">,</span> <span class="n">tsne_ncell</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
-                 <span class="n">clustering</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_filter_response</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                 <span class="n">percentage_drop_cluster</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span> <span class="n">min_cluster_freq</span><span class="o">=</span><span class="mf">0.2</span><span class="p">):</span>
+                 <span class="n">group_a</span><span class="o">=</span><span class="s1">&#39;group A&#39;</span><span class="p">,</span> <span class="n">group_b</span><span class="o">=</span><span class="s1">&#39;group B&#39;</span><span class="p">,</span> <span class="n">group_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tsne_ncell</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
+                 <span class="n">regression</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">clustering</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_filter_response</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">percentage_drop_cluster</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span> <span class="n">min_cluster_freq</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">show_filters</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 
     <span class="sd">&quot;&quot;&quot; Plots the results of a CellCnn analysis.</span>
 
@@ -117,6 +114,8 @@
 <span class="sd">            Name of the first class.</span>
 <span class="sd">        - group_b :</span>
 <span class="sd">            Name of the second class.</span>
+<span class="sd">        - group_names :</span>
+<span class="sd">            List of names for the different phenotype classes.</span>
 <span class="sd">        - positive_filters_only :</span>
 <span class="sd">            If True, only consider filters associated with higher cell population frequency in the</span>
 <span class="sd">            positive class.</span>
@@ -125,8 +124,12 @@
 <span class="sd">            logarithmic scale.</span>
 <span class="sd">        - clustering: None | &#39;dbscan&#39; | &#39;louvain&#39;</span>
 <span class="sd">            Post-processing option for selected cell populations. Default is None.</span>
-<span class="sd">        - tsne_ncell:</span>
+<span class="sd">        - tsne_ncell :</span>
 <span class="sd">            Number of cells to include in t-SNE calculations and plots.</span>
+<span class="sd">        - regression :</span>
+<span class="sd">            Whether it is a regression problem.</span>
+<span class="sd">        - show_filters :</span>
+<span class="sd">            Whether to plot learned filter weights.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        A list with the indices and corresponding cell filter response thresholds of selected</span>
@@ -172,9 +175,10 @@
 <span class="sd">            Histograms of univariate marker expression profiles for the cell population selected by</span>
 <span class="sd">            filter ``i`` vs all cells.</span>
 
-<span class="sd">        - selected_population_boxplot_filter_i.pdf :</span>
-<span class="sd">            Boxplot of selected cell population frequencies in samples of the different classes.</span>
-<span class="sd">            Currently only plotted for binary classification problems.</span>
+<span class="sd">        - selected_population_frequencies_filter_i.pdf :</span>
+<span class="sd">            Boxplot of selected cell population frequencies in samples of the different classes,</span>
+<span class="sd">            if running a classification problem. For regression settings, a scatter plot of selected</span>
+<span class="sd">            cell population frequencies vs response variable is generated.</span>
 
 <span class="sd">        - tsne_cell_response_filter_i.png :</span>
 <span class="sd">            Cell filter response overlaid on t-SNE map.</span>
@@ -189,31 +193,14 @@
     <span class="c1"># number of measured markers</span>
     <span class="n">nmark</span> <span class="o">=</span> <span class="n">samples</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
 
-    <span class="c1"># plot the filter weights of the best network</span>
-    <span class="n">w_best</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;w_best_net&#39;</span><span class="p">]</span>
-    <span class="n">idx_except_bias</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">nmark</span><span class="p">)</span> <span class="o">+</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmark</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">w_best</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
-    <span class="n">nc</span> <span class="o">=</span> <span class="n">w_best</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="p">(</span><span class="n">nmark</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">labels_except_bias</span> <span class="o">=</span> <span class="n">labels</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;out </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nc</span><span class="p">)]</span>
-    <span class="n">w_best</span> <span class="o">=</span> <span class="n">w_best</span><span class="p">[:,</span> <span class="n">idx_except_bias</span><span class="p">]</span>
-    <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;best_net_weights.pdf&#39;</span><span class="p">)</span>
-    <span class="n">plot_nn_weights</span><span class="p">(</span><span class="n">w_best</span><span class="p">,</span> <span class="n">labels_except_bias</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">show_filters</span><span class="p">:</span>
+        <span class="n">plot_filters</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">outdir</span><span class="p">)</span>
 
-    <span class="c1"># plot the selected filters</span>
     <span class="k">if</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;selected_filters&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="nb">print</span> <span class="s1">&#39;Loading the weights of consensus filters.&#39;</span>
-        <span class="n">w</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;selected_filters&#39;</span><span class="p">][:,</span> <span class="n">idx_except_bias</span><span class="p">]</span>
-        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;consensus_filter_weights.pdf&#39;</span><span class="p">)</span>
-        <span class="n">plot_nn_weights</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">labels_except_bias</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
         <span class="n">filters</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;selected_filters&#39;</span><span class="p">]</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="s1">&#39;Consensus filters were not found.&#39;</span><span class="p">)</span>
-
-    <span class="c1"># plot the filter clustering</span>
-    <span class="n">cl</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;clustering_result&#39;</span><span class="p">]</span>
-    <span class="n">cl_w</span> <span class="o">=</span> <span class="n">cl</span><span class="p">[</span><span class="s1">&#39;w&#39;</span><span class="p">][:,</span> <span class="n">idx_except_bias</span><span class="p">]</span>
-    <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;clustered_filter_weights.pdf&#39;</span><span class="p">)</span>
-    <span class="n">plot_nn_weights</span><span class="p">(</span><span class="n">cl_w</span><span class="p">,</span> <span class="n">labels_except_bias</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">row_linkage</span><span class="o">=</span><span class="n">cl</span><span class="p">[</span><span class="s1">&#39;cluster_linkage&#39;</span><span class="p">],</span>
-                    <span class="n">y_labels</span><span class="o">=</span><span class="n">cl</span><span class="p">[</span><span class="s1">&#39;cluster_assignments&#39;</span><span class="p">],</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
 
     <span class="c1"># select the discriminative filters based on the validation set</span>
     <span class="k">if</span> <span class="s1">&#39;filter_diff&#39;</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
@@ -339,7 +326,7 @@
         <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;tsne_cell_response_filter_</span><span class="si">%d</span><span class="s1">.png&#39;</span> <span class="o">%</span> <span class="n">i_filter</span><span class="p">)</span>
         <span class="n">plot_2D_map</span><span class="p">(</span><span class="n">x_tsne</span><span class="p">,</span> <span class="n">g</span><span class="p">[</span><span class="n">tsne_idx</span><span class="p">],</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
         <span class="c1"># overlay marker values on TSNE map for selected cells</span>
-        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;tsne_selected cells_filter_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i_filter</span><span class="p">)</span>
+        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;tsne_selected_cells_filter_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i_filter</span><span class="p">)</span>
         <span class="n">g_tsne</span> <span class="o">=</span> <span class="n">g</span><span class="p">[</span><span class="n">tsne_idx</span><span class="p">]</span>
         <span class="n">x_pos</span> <span class="o">=</span> <span class="n">x_for_tsne</span><span class="p">[</span><span class="n">g_tsne</span> <span class="o">&gt;</span> <span class="n">t</span><span class="p">]</span>
         <span class="n">x_tsne_pos</span> <span class="o">=</span> <span class="n">x_tsne</span><span class="p">[</span><span class="n">g_tsne</span> <span class="o">&gt;</span> <span class="n">t</span><span class="p">]</span>
@@ -351,7 +338,7 @@
             <span class="n">suffix</span> <span class="o">=</span> <span class="s1">&#39;filter_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i_filter</span>
             <span class="n">plot_selected_subset</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">z1</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">sample_sizes</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">,</span>
                                  <span class="n">outdir</span><span class="p">,</span> <span class="n">suffix</span><span class="p">,</span> <span class="n">stat_test</span><span class="p">,</span> <span class="n">log_yscale</span><span class="p">,</span>
-                                 <span class="n">group_a</span><span class="p">,</span> <span class="n">group_b</span><span class="p">)</span>
+                                 <span class="n">group_a</span><span class="p">,</span> <span class="n">group_b</span><span class="p">,</span> <span class="n">group_names</span><span class="p">,</span> <span class="n">regression</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">clustering</span> <span class="o">==</span> <span class="s1">&#39;louvain&#39;</span><span class="p">:</span>
                 <span class="nb">print</span> <span class="s1">&#39;Creating a k-NN graph with </span><span class="si">%d</span><span class="s1">/</span><span class="si">%d</span><span class="s1"> cells...&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">x1</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
@@ -397,9 +384,36 @@
                 <span class="n">suffix</span> <span class="o">=</span> <span class="s1">&#39;filter_</span><span class="si">%d</span><span class="s1">_cluster_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">i_filter</span><span class="p">,</span> <span class="n">cl_id</span><span class="p">)</span>
                 <span class="n">plot_selected_subset</span><span class="p">(</span><span class="n">xc</span><span class="p">,</span> <span class="n">zc</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">sample_sizes</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">,</span>
                                      <span class="n">outdir</span><span class="p">,</span> <span class="n">suffix</span><span class="p">,</span> <span class="n">stat_test</span><span class="p">,</span> <span class="n">log_yscale</span><span class="p">,</span>
-                                     <span class="n">group_a</span><span class="p">,</span> <span class="n">group_b</span><span class="p">)</span>
+                                     <span class="n">group_a</span><span class="p">,</span> <span class="n">group_b</span><span class="p">,</span> <span class="n">group_names</span><span class="p">,</span> <span class="n">regression</span><span class="p">)</span>
     <span class="nb">print</span> <span class="s1">&#39;Done.</span><span class="se">\n</span><span class="s1">&#39;</span>
     <span class="k">return</span> <span class="n">return_filters</span></div>
+
+
+<span class="k">def</span> <span class="nf">plot_filters</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">outdir</span><span class="p">):</span>
+    <span class="n">mkdir_p</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+    <span class="n">nmark</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="c1"># plot the filter weights of the best network</span>
+    <span class="n">w_best</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;w_best_net&#39;</span><span class="p">]</span>
+    <span class="n">idx_except_bias</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">nmark</span><span class="p">)</span> <span class="o">+</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmark</span><span class="o">+</span><span class="mi">1</span><span class="p">,</span> <span class="n">w_best</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+    <span class="n">nc</span> <span class="o">=</span> <span class="n">w_best</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="p">(</span><span class="n">nmark</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">labels_except_bias</span> <span class="o">=</span> <span class="n">labels</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;out </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nc</span><span class="p">)]</span>
+    <span class="n">w_best</span> <span class="o">=</span> <span class="n">w_best</span><span class="p">[:,</span> <span class="n">idx_except_bias</span><span class="p">]</span>
+    <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;best_net_weights.pdf&#39;</span><span class="p">)</span>
+    <span class="n">plot_nn_weights</span><span class="p">(</span><span class="n">w_best</span><span class="p">,</span> <span class="n">labels_except_bias</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="c1"># plot the filter clustering</span>
+    <span class="n">cl</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;clustering_result&#39;</span><span class="p">]</span>
+    <span class="n">cl_w</span> <span class="o">=</span> <span class="n">cl</span><span class="p">[</span><span class="s1">&#39;w&#39;</span><span class="p">][:,</span> <span class="n">idx_except_bias</span><span class="p">]</span>
+    <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;clustered_filter_weights.pdf&#39;</span><span class="p">)</span>
+    <span class="n">plot_nn_weights</span><span class="p">(</span><span class="n">cl_w</span><span class="p">,</span> <span class="n">labels_except_bias</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">row_linkage</span><span class="o">=</span><span class="n">cl</span><span class="p">[</span><span class="s1">&#39;cluster_linkage&#39;</span><span class="p">],</span>
+                    <span class="n">y_labels</span><span class="o">=</span><span class="n">cl</span><span class="p">[</span><span class="s1">&#39;cluster_assignments&#39;</span><span class="p">],</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+    <span class="c1"># plot the selected filters</span>
+    <span class="k">if</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;selected_filters&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;selected_filters&#39;</span><span class="p">][:,</span> <span class="n">idx_except_bias</span><span class="p">]</span>
+        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;consensus_filter_weights.pdf&#39;</span><span class="p">)</span>
+        <span class="n">plot_nn_weights</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">labels_except_bias</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">))</span>
+        <span class="n">filters</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;selected_filters&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="s1">&#39;Consensus filters were not found.&#39;</span><span class="p">)</span>
 
 <span class="k">def</span> <span class="nf">plot_nn_weights</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">x_labels</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">row_linkage</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y_labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">3</span><span class="p">)):</span>
     <span class="k">if</span> <span class="n">y_labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -409,7 +423,7 @@
         <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">fig_size</span><span class="p">)</span>
         <span class="n">clmap</span> <span class="o">=</span> <span class="n">sns</span><span class="o">.</span><span class="n">clustermap</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">x_labels</span><span class="p">),</span>
                                <span class="n">method</span><span class="o">=</span><span class="s1">&#39;average&#39;</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="s1">&#39;cosine&#39;</span><span class="p">,</span> <span class="n">row_linkage</span><span class="o">=</span><span class="n">row_linkage</span><span class="p">,</span>
-                               <span class="n">col_cluster</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">robust</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">yticklabels</span><span class="o">=</span><span class="n">y_labels</span><span class="p">)</span>
+                               <span class="n">col_cluster</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">robust</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">yticklabels</span><span class="o">=</span><span class="n">y_labels</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="s2">&quot;RdBu_r&quot;</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">setp</span><span class="p">(</span><span class="n">clmap</span><span class="o">.</span><span class="n">ax_heatmap</span><span class="o">.</span><span class="n">yaxis</span><span class="o">.</span><span class="n">get_majorticklabels</span><span class="p">(),</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">setp</span><span class="p">(</span><span class="n">clmap</span><span class="o">.</span><span class="n">ax_heatmap</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">get_majorticklabels</span><span class="p">(),</span> <span class="n">rotation</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
         <span class="n">clmap</span><span class="o">.</span><span class="n">cax</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
@@ -423,7 +437,8 @@
 
 <span class="k">def</span> <span class="nf">plot_selected_subset</span><span class="p">(</span><span class="n">xc</span><span class="p">,</span> <span class="n">zc</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">sample_sizes</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">suffix</span><span class="p">,</span>
                          <span class="n">stat_test</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log_yscale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                         <span class="n">group_a</span><span class="o">=</span><span class="s1">&#39;group A&#39;</span><span class="p">,</span> <span class="n">group_b</span><span class="o">=</span><span class="s1">&#39;group B&#39;</span><span class="p">):</span>
+                         <span class="n">group_a</span><span class="o">=</span><span class="s1">&#39;group A&#39;</span><span class="p">,</span> <span class="n">group_b</span><span class="o">=</span><span class="s1">&#39;group B&#39;</span><span class="p">,</span> <span class="n">group_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">regression</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
     <span class="n">ks_values</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">nmark</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
     <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nmark</span><span class="p">):</span>
@@ -440,29 +455,60 @@
                              <span class="n">sorted_labels</span><span class="p">,</span> <span class="n">grid_size</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="n">ks_list</span><span class="o">=</span><span class="n">sorted_ks</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">24</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
                              <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;red&#39;</span><span class="p">],</span> <span class="n">fig_path</span><span class="o">=</span><span class="n">fig_path</span><span class="p">,</span> <span class="n">hist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="c1"># for binary classification, plot a boxplot of per class frequencies</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">phenotypes</span><span class="p">))</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+    <span class="c1"># for classification, plot a boxplot of per class frequencies</span>
+    <span class="c1"># for regression, make a biaxial plot (phenotype vs. frequency)</span>
+
+    <span class="k">if</span> <span class="n">regression</span><span class="p">:</span>
+        <span class="n">frequencies</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">y_i</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">sample_sizes</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">)):</span>
+            <span class="n">freq</span> <span class="o">=</span> <span class="mf">100.</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">zc</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+            <span class="n">frequencies</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
+
+        <span class="n">_fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mf">2.5</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">))</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">phenotypes</span><span class="p">,</span> <span class="n">frequencies</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">log_yscale</span><span class="p">:</span>
+            <span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">frequencies</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;selected population frequency (%)&quot;</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;response variable&quot;</span><span class="p">)</span>
+        <span class="n">sns</span><span class="o">.</span><span class="n">despine</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;selected_population_frequencies_</span><span class="si">%s</span><span class="s1">.pdf&#39;</span> <span class="o">%</span> <span class="n">suffix</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">n_pheno</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">phenotypes</span><span class="p">))</span>
+        <span class="n">frequencies</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">y_i</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">sample_sizes</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">)):</span>
             <span class="n">freq</span> <span class="o">=</span> <span class="mf">100.</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">zc</span> <span class="o">==</span> <span class="n">i</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
             <span class="k">assert</span> <span class="n">freq</span> <span class="o">&lt;=</span> <span class="mi">100</span>
-            <span class="k">if</span> <span class="n">y_i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">freq_a</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">y_i</span> <span class="ow">in</span> <span class="n">frequencies</span><span class="p">:</span>
+                <span class="n">frequencies</span><span class="p">[</span><span class="n">y_i</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">freq_b</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">freq</span><span class="p">)</span>
-        <span class="c1"># perform a statistical test</span>
-        <span class="k">if</span> <span class="n">stat_test</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">pval</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="k">elif</span> <span class="n">stat_test</span> <span class="o">==</span> <span class="s1">&#39;mannwhitneyu&#39;</span><span class="p">:</span>
-            <span class="n">_t</span><span class="p">,</span> <span class="n">pval</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">mannwhitneyu</span><span class="p">(</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">)</span>
-        <span class="k">elif</span> <span class="n">stat_test</span> <span class="o">==</span> <span class="s1">&#39;ttest&#39;</span><span class="p">:</span>
-            <span class="n">_t</span><span class="p">,</span> <span class="n">pval</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">ttest_ind</span><span class="p">(</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">)</span>
+                <span class="n">frequencies</span><span class="p">[</span><span class="n">y_i</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">freq</span><span class="p">]</span>
+        <span class="c1"># optionally, perform a statistical test</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">n_pheno</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">stat_test</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span> <span class="o">=</span> <span class="n">frequencies</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">frequencies</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">stat_test</span> <span class="o">==</span> <span class="s1">&#39;mannwhitneyu&#39;</span><span class="p">:</span>
+                <span class="n">_t</span><span class="p">,</span> <span class="n">pval</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">mannwhitneyu</span><span class="p">(</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">stat_test</span> <span class="o">==</span> <span class="s1">&#39;ttest&#39;</span><span class="p">:</span>
+                <span class="n">_t</span><span class="p">,</span> <span class="n">pval</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">ttest_ind</span><span class="p">(</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">_t</span><span class="p">,</span> <span class="n">pval</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">ttest_ind</span><span class="p">(</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">_t</span><span class="p">,</span> <span class="n">pval</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">ttest_ind</span><span class="p">(</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">)</span>
+            <span class="n">pval</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="c1"># make a boxplot with error bars</span>
-        <span class="n">box_grade</span> <span class="o">=</span> <span class="p">[</span><span class="n">group_a</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">freq_a</span><span class="p">)</span> <span class="o">+</span> <span class="p">[</span><span class="n">group_b</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">freq_b</span><span class="p">)</span>
-        <span class="n">box_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">freq_a</span><span class="p">,</span> <span class="n">freq_b</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">group_names</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">n_pheno</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">group_names</span> <span class="o">=</span> <span class="p">[</span><span class="n">group_a</span><span class="p">,</span> <span class="n">group_b</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">group_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;group </span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">y_i</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">y_i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_pheno</span><span class="p">)]</span>
+        <span class="n">box_grade</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">group_name</span><span class="p">,</span> <span class="n">y_i</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">group_names</span><span class="p">,</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_pheno</span><span class="p">)):</span>
+            <span class="n">box_grade</span> <span class="o">+=</span> <span class="p">[</span><span class="n">group_name</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">frequencies</span><span class="p">[</span><span class="n">y_i</span><span class="p">])</span>
+        <span class="n">box_data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">frequencies</span><span class="p">[</span><span class="n">y_i</span><span class="p">])</span> <span class="k">for</span> <span class="n">y_i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_pheno</span><span class="p">)])</span>
         <span class="n">box</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">box_grade</span><span class="p">,</span> <span class="n">box_data</span><span class="p">)),</span>
                            <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;group&#39;</span><span class="p">,</span> <span class="s1">&#39;selected population frequency (%)&#39;</span><span class="p">])</span>
         <span class="n">box</span><span class="p">[</span><span class="s1">&#39;selected population frequency (%)&#39;</span><span class="p">]</span> <span class="o">=</span> \
@@ -477,10 +523,10 @@
                     <span class="n">transform</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">transAxes</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="s1">&#39;bold&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">log_yscale</span><span class="p">:</span>
             <span class="n">ax</span><span class="o">.</span><span class="n">set_yscale</span><span class="p">(</span><span class="s1">&#39;log&#39;</span><span class="p">)</span>
-        <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">freq_a</span> <span class="o">+</span> <span class="n">freq_b</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">box_data</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">sns</span><span class="o">.</span><span class="n">despine</span><span class="p">()</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
-        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;selected_population_boxplot_</span><span class="si">%s</span><span class="s1">.pdf&#39;</span> <span class="o">%</span> <span class="n">suffix</span><span class="p">)</span>
+        <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;selected_population_frequencies_</span><span class="si">%s</span><span class="s1">.pdf&#39;</span> <span class="o">%</span> <span class="n">suffix</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">fig_path</span><span class="p">)</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
         <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
@@ -795,8 +841,8 @@
       &copy;2017, Eirini Arvaniti.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.2</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
       
     </div>
 

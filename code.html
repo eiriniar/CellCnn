@@ -1,16 +1,13 @@
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
     <title>Documentation &#8212; CellCnn 0.1 documentation</title>
-    
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
@@ -24,7 +21,7 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="prev" title="Welcome to CellCnn’s documentation!" href="index.html" />
@@ -35,7 +32,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
   </head>
-  <body role="document">
+  <body>
   
 
     <div class="document">
@@ -76,7 +73,7 @@ For regression problems, it is automatically set to <cite>True</cite>.</dd>
 </li>
 <li><dl class="first docutils">
 <dt>subset_selection :</dt>
-<dd>Can be &#8216;random&#8217; or &#8216;outlier&#8217;. Generate multi-cell inputs uniformly at
+<dd>Can be ‘random’ or ‘outlier’. Generate multi-cell inputs uniformly at
 random or biased towards outliers. The latter option is only relevant for detection of
 extremely rare (frequency &lt; 0.1%) cell populations.</dd>
 </dl>
@@ -124,7 +121,7 @@ learning rates in the range [0.001, 0.01] will be tried out.</dd>
 <li><dl class="first docutils">
 <dt>dropout :</dt>
 <dd>Whether to use dropout (at each epoch, set a neuron to zero with probability
-<cite>dropout_p</cite>). The default behavior &#8216;auto&#8217; uses dropout when <cite>nfilter</cite> &gt; 5.</dd>
+<cite>dropout_p</cite>). The default behavior ‘auto’ uses dropout when <cite>nfilter</cite> &gt; 5.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
@@ -268,7 +265,7 @@ minimum size in <cite>new_samples</cite>.</dd>
 <p>This module contains functions for plotting the results of a CellCnn analysis.</p>
 <dl class="function">
 <dt id="cellCnn.plotting.plot_results">
-<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>filter_diff_thres=0.2</em>, <em>filter_response_thres=0</em>, <em>response_grad_cutoff=None</em>, <em>stat_test=None</em>, <em>positive_filters_only=False</em>, <em>log_yscale=False</em>, <em>group_a='group A'</em>, <em>group_b='group B'</em>, <em>tsne_ncell=10000</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>min_cluster_freq=0.2</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>filter_diff_thres=0.2</em>, <em>filter_response_thres=0</em>, <em>response_grad_cutoff=None</em>, <em>stat_test=None</em>, <em>positive_filters_only=False</em>, <em>log_yscale=False</em>, <em>group_a='group A'</em>, <em>group_b='group B'</em>, <em>group_names=None</em>, <em>tsne_ncell=10000</em>, <em>regression=False</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>min_cluster_freq=0.2</em>, <em>show_filters=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plots the results of a CellCnn analysis.</p>
 <dl class="docutils">
 <dt>Args:</dt>
@@ -304,7 +301,7 @@ minimum size in <cite>new_samples</cite>.</dd>
 <code class="docutils literal"><span class="pre">filter_diff</span></code> of average cell filter response differences between classes,
 sorted in decreasing order, keep a filter <code class="docutils literal"><span class="pre">i,</span> <span class="pre">i</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> if it holds that
 <code class="docutils literal"><span class="pre">filter_diff[i-1]</span> <span class="pre">-</span> <span class="pre">filter_diff[i]</span> <span class="pre">&lt;</span> <span class="pre">filter_diff_thres</span> <span class="pre">*</span> <span class="pre">filter_diff[i-1]</span></code>.
-For regression problems, the array <code class="docutils literal"><span class="pre">filter_diff</span></code> contains Kendall&#8217;s tau
+For regression problems, the array <code class="docutils literal"><span class="pre">filter_diff</span></code> contains Kendall’s tau
 values for each filter.</dd>
 </dl>
 </li>
@@ -320,7 +317,7 @@ the selected cell population.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>stat_test: None | &#8216;ttest&#8217; | &#8216;mannwhitneyu&#8217;</dt>
+<dt>stat_test: None | ‘ttest’ | ‘mannwhitneyu’</dt>
 <dd>Optionally, perform a statistical test on selected cell population frequencies between
 two groups and report the corresponding p-value on the boxplot figure
 (see plots description below). Default is None. Currently only used for binary
@@ -338,6 +335,11 @@ classification problems.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
+<dt>group_names :</dt>
+<dd>List of names for the different phenotype classes.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
 <dt>positive_filters_only :</dt>
 <dd>If True, only consider filters associated with higher cell population frequency in the
 positive class.</dd>
@@ -350,13 +352,23 @@ logarithmic scale.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>clustering: None | &#8216;dbscan&#8217; | &#8216;louvain&#8217;</dt>
+<dt>clustering: None | ‘dbscan’ | ‘louvain’</dt>
 <dd>Post-processing option for selected cell populations. Default is None.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>tsne_ncell:</dt>
+<dt>tsne_ncell :</dt>
 <dd>Number of cells to include in t-SNE calculations and plots.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>regression :</dt>
+<dd>Whether it is a regression problem.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>show_filters :</dt>
+<dd>Whether to plot learned filter weights.</dd>
 </dl>
 </li>
 </ul>
@@ -378,7 +390,7 @@ result of the hierarchical clustering procedure.</dd>
 <li><dl class="first docutils">
 <dt>consensus_filter_weights.pdf :</dt>
 <dd>One representative filter per cluster is chosen (the filter with minimum distance to all
-other memebers of the cluster). We call these selected filters &#8220;consensus filters&#8221;.</dd>
+other memebers of the cluster). We call these selected filters “consensus filters”.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
@@ -389,13 +401,13 @@ other memebers of the cluster). We call these selected filters &#8220;consensus 
 <li><dl class="first docutils">
 <dt>filter_response_differences.pdf :</dt>
 <dd>Difference in cell filter response between classes for each consensus filter.
-To compute this difference for a filter, we first choose a filter-specific class, that&#8217;s
+To compute this difference for a filter, we first choose a filter-specific class, that’s
 the class with highest output weight connection to the filter. Then we compute the
 average cell filter response (value after the pooling layer) for validation samples
 belonging to the filter-specific class (<code class="docutils literal"><span class="pre">v1</span></code>) and the average cell filter response
 for validation samples not belonging to the filter-specific class (<code class="docutils literal"><span class="pre">v0</span></code>).
 The difference is computed as <code class="docutils literal"><span class="pre">v1</span> <span class="pre">-</span> <span class="pre">v0</span></code>. For regression problems, we cannot compute
-a difference between classes. Instead we compute Kendall&#8217;s rank correlation coefficient
+a difference between classes. Instead we compute Kendall’s rank correlation coefficient
 between the predictions of each individual filter (value after the pooling layer) and
 the true response valuees.
 This plot helps decide on a cutoff (<code class="docutils literal"><span class="pre">filter_diff_thres</span></code> parameter) for selecting
@@ -424,9 +436,10 @@ filter <code class="docutils literal"><span class="pre">i</span></code> vs all c
 </dl>
 </li>
 <li><dl class="first docutils">
-<dt>selected_population_boxplot_filter_i.pdf :</dt>
-<dd>Boxplot of selected cell population frequencies in samples of the different classes.
-Currently only plotted for binary classification problems.</dd>
+<dt>selected_population_frequencies_filter_i.pdf :</dt>
+<dd>Boxplot of selected cell population frequencies in samples of the different classes,
+if running a classification problem. For regression settings, a scatter plot of selected
+cell population frequencies vs response variable is generated.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
@@ -465,7 +478,7 @@ Currently only plotted for binary classification problems.</dd>
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="index.html" title="previous chapter">Welcome to CellCnn&#8217;s documentation!</a></li>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to CellCnn’s documentation!</a></li>
   </ul></li>
 </ul>
 </div>
@@ -494,8 +507,8 @@ Currently only plotted for binary classification problems.</dd>
       &copy;2017, Eirini Arvaniti.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.5.2</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.9</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
       
       |
       <a href="_sources/code.rst.txt"
