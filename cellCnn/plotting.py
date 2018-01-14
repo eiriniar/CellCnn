@@ -186,7 +186,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         vmin[seq_index] = np.percentile(x[:, seq_index], 1)
         vmax[seq_index] = np.percentile(x[:, seq_index], 99)
     fig_path = os.path.join(outdir, 'tsne_all_cells')
-    plot_tsne_grid(x_tsne, x_for_tsne, (6,7), fig_path, labels=labels, fig_size=(20, 20),
+    plot_tsne_grid(x_tsne, x_for_tsne, fig_path, labels=labels, fig_size=(20, 20),
                    point_size=5)
 
     return_filters = []
@@ -237,7 +237,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         g_tsne = g[tsne_idx]
         x_pos = x_for_tsne[g_tsne > t]
         x_tsne_pos = x_tsne[g_tsne > t]
-        plot_tsne_selection_grid(x_tsne_pos, x_pos, x_tsne, vmin, vmax, grid_size=(6,7),
+        plot_tsne_selection_grid(x_tsne_pos, x_pos, x_tsne, vmin, vmax,
                                  fig_path=fig_path, labels=labels, fig_size=(20, 20), s=5,
                                  suffix='png')
 
@@ -614,21 +614,16 @@ def make_biaxial(train_feat, valid_feat, test_feat, train_y, valid_y, test_y, fi
     plt.clf()
     plt.close()
 
-def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9, 9),
+def plot_tsne_grid(z, x, fig_path, labels=None, fig_size=(9, 9), g_j=7,
                    suffix='png', point_size=.1):
     ncol = x.shape[1]
+    g_i = ncol // g_j if (ncol % g_j == 0) else ncol // g_j + 1
     if labels is None:
         labels = [str(a) for a in range(ncol)]
 
     sns.set_style('white')
     fig = plt.figure(figsize=fig_size)
     fig.clf()
-    g_i, g_j = grid_size
-    # make sure the grid size is consistent with the number of markers
-    gg = g_i * g_j
-    while gg < ncol:
-        g_i += 1
-        gg = g_i * g_j
     grid = ImageGrid(fig, 111,
                      nrows_ncols=(g_i, g_j),
                      ngrids=ncol,
@@ -660,20 +655,15 @@ def plot_tsne_grid(z, x, grid_size, fig_path, labels=None, fig_size=(9, 9),
     plt.clf()
     plt.close()
 
-def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, grid_size, fig_path,
-                             labels=None, fig_size=(9, 9), s=.5, suffix='png'):
+def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, fig_path,
+                             labels=None, fig_size=(9, 9), g_j=7, s=.5, suffix='png'):
     ncol = x_pos.shape[1]
+    g_i = ncol // g_j if (ncol % g_j == 0) else ncol // g_j + 1
     if labels is None:
         labels = [str(a) for a in np.range(ncol)]
 
     fig = plt.figure(figsize=fig_size)
     fig.clf()
-    g_i, g_j = grid_size
-    # make sure the grid size is consistent with the number of markers
-    gg = g_i * g_j
-    while gg < ncol:
-        g_i += 1
-        gg = g_i * g_j
     grid = ImageGrid(fig, 111,
                      nrows_ncols=(g_i, g_j),
                      ngrids=ncol,
