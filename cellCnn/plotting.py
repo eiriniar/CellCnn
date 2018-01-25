@@ -196,6 +196,10 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         g = np.sum(w.reshape(1, -1) * x, axis=1) + b
         g = g * (g > 0)
 
+        # skip a filter if it does not select any cell
+        if np.max(g) <= 0:
+            continue
+
         ecdf = sm.distributions.ECDF(g)
         gx = np.linspace(np.min(g), np.max(g))
         gy = ecdf(gx)
@@ -223,7 +227,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         z1 = z[condition]
         g1 = g[condition]
 
-        # skip a filter if it does not select any cell
+        # skip a filter if it does not select any cell with the new cutoff threshold
         if x1.shape[0] == 0:
             continue
 
