@@ -305,6 +305,7 @@ def discriminative_filters(results, outdir, filter_diff_thres, positive_filters_
     # select the discriminative filters based on the validation set
     if 'filter_diff' in results:
         filter_diff = results['filter_diff']
+        filter_diff[np.isnan(filter_diff)] = -1
 
         # do we want to consider negative filters?
         if positive_filters_only:
@@ -331,6 +332,7 @@ def discriminative_filters(results, outdir, filter_diff_thres, positive_filters_
 
     elif 'filter_tau' in results:
         filter_diff = results['filter_tau']
+        filter_diff[np.isnan(filter_diff)] = -1
 
         # do we want to consider negative filters?
         if positive_filters_only:
@@ -630,7 +632,7 @@ def plot_tsne_grid(z, x, fig_path, labels=None, fig_size=(9, 9), g_j=7,
     fig.clf()
     grid = ImageGrid(fig, 111,
                      nrows_ncols=(g_i, g_j),
-                     ngrids=ncol,
+                     ngrids=None if ncol % g_j == 0 else ncol,
                      aspect=True,
                      direction="row",
                      axes_pad=(0.15, 0.5),
@@ -670,7 +672,7 @@ def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, fig_path,
     fig.clf()
     grid = ImageGrid(fig, 111,
                      nrows_ncols=(g_i, g_j),
-                     ngrids=ncol,
+                     ngrids=None if ncol % g_j == 0 else ncol,
                      aspect=True,
                      direction="row",
                      axes_pad=(0.15, 0.5),
