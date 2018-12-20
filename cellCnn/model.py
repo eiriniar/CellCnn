@@ -544,7 +544,7 @@ def build_model(ncell, nmark, nfilter, coeff_l1, coeff_l2, coeff_activity,
                        W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
                        name='output')(pooled)
     else:
-        output = Dense(1, activation='tanh', W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
+        output = Dense(1, activation='linear', W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
                        name='output')(pooled)
     model = Model(input=data_input, output=output)
 

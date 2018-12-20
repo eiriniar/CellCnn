@@ -302,6 +302,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
 
 def discriminative_filters(results, outdir, filter_diff_thres, positive_filters_only=False, show_filters=True):
     mkdir_p(outdir)
+    filters = results['selected_filters']
     # select the discriminative filters based on the validation set
     if 'filter_diff' in results:
         filter_diff = results['filter_diff']
@@ -428,7 +429,7 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
     fig_path = os.path.join(outdir, 'selected_population_distribution_%s.pdf' % suffix)
     plot_marker_distribution([x[:, sorted_idx], xc[:, sorted_idx]], ['all cells', 'selected'],
                              sorted_labels, grid_size=(4, 9), ks_list=sorted_ks, figsize=(24, 10),
-                             colors=['blue', 'red'], fig_path=fig_path, hist=True)
+                             colors=['blue', 'red'], fig_path=fig_path, hist=False)
 
     # for classification, plot a boxplot of per class frequencies
     # for regression, make a biaxial plot (phenotype vs. frequency)
@@ -538,14 +539,14 @@ def plot_marker_distribution(datalist, namelist, labels, grid_size, fig_path=Non
                             plt.hist(x[:, seq_index], np.linspace(lower, upper, 10),
                                      color=colors[i_name], label=name, alpha=.5, normed=True)
                         else:
-                            sns.kdeplot(x[:, seq_index], color=colors[i_name], label=name,
+                            sns.kdeplot(x[:, seq_index], shade=True, color=colors[i_name], label=name,
                                         clip=(lower, upper))
                     else:
                         if hist:
                             plt.hist(x[:, seq_index], np.linspace(lower, upper, 10),
                                      color=colors[i_name], label=name, alpha=.5, normed=True)
                         else:
-                            sns.kdeplot(x[:, seq_index], color=colors[i_name], clip=(lower, upper))
+                            sns.kdeplot(x[:, seq_index], shade=True, color=colors[i_name], clip=(lower, upper))
                 ax.get_yaxis().set_ticks([])
                 #ax.get_xaxis().set_ticks([-2, 0, 2, 4])
 
