@@ -77,8 +77,6 @@ def main():
                         help='coefficient for L1 weight regularization')
     parser.add_argument('--coeff_l2', type=float, default=0.0001,
                         help='coefficient for L2 weight regularization')
-    parser.add_argument('--coeff_activity', type=float, default=0,
-                        help='coefficient for regularizing the activity at each filter')
     parser.add_argument('--max_epochs', type=int, default=20,
                         help='maximum number of iterations through the data')
     parser.add_argument('--patience', type=int, default=5,
@@ -104,9 +102,6 @@ def main():
                         help='threshold that defines which filters are discriminative')
     parser.add_argument('--filter_response_thres', type=float, default=0,
                         help='threshold that defines the selected cell population per filter')
-    parser.add_argument('--positive_filters_only', action='store_true', default=False,
-                        help='whether to only consider filters associated with higher cell ' \
-                             'population frequencies in the positive class')
     parser.add_argument('--stat_test', choices=[None, 'ttest', 'mannwhitneyu'],
                         help='statistical test for comparing cell population frequencies of two ' \
                              'groups of samples')
@@ -173,7 +168,6 @@ def main():
                         learning_rate=args.learning_rate,
                         coeff_l1=args.coeff_l1,
                         coeff_l2=args.coeff_l2,
-                        coeff_activity=args.coeff_activity,
                         max_epochs=args.max_epochs,
                         patience=args.patience,
                         dendrogram_cutoff=args.dendrogram_cutoff,
@@ -197,13 +191,11 @@ def main():
         plot_filters(results, marker_names, os.path.join(plotdir, 'filter_plots'))
         _v = discriminative_filters(results, os.path.join(plotdir, 'filter_plots'),
                                     filter_diff_thres=args.filter_diff_thres,
-                                    positive_filters_only=args.positive_filters_only,
                                     show_filters=True)
         filter_info = plot_results(results, train_samples, train_phenotypes,
                                    marker_names, os.path.join(plotdir, 'training_plots'),
                                    filter_diff_thres=args.filter_diff_thres,
                                    filter_response_thres=args.filter_response_thres,
-                                   positive_filters_only=args.positive_filters_only,
                                    stat_test=args.stat_test,
                                    group_a=args.group_a, group_b=args.group_b,
                                    group_names=args.group_names,
@@ -214,7 +206,6 @@ def main():
                           marker_names, os.path.join(plotdir, 'validation_plots'),
                           filter_diff_thres=args.filter_diff_thres,
                           filter_response_thres=args.filter_response_thres,
-                          positive_filters_only=args.positive_filters_only,
                           stat_test=args.stat_test,
                           group_a=args.group_a, group_b=args.group_b,
                           group_names=args.group_names,
