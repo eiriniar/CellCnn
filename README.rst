@@ -35,7 +35,7 @@ After having Python2.7 running on your system, please do the following to instal
 
 ----
 
-Changed in __version v0.2__: we now use the lightweight ``flowIO`` package for reading mass/flow cytometry data.
+Changed in **version v0.2**: we now use the lightweight ``flowIO`` package for reading mass/flow cytometry data.
 Thanks to the package author Scott White for pointing out this possibility! 
 
 Usage
