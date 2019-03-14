@@ -1,8 +1,0 @@
-include setup.py
-include README.rst
-include CONTRIBUTORS
-include ForDevelopers.txt
-recursive-include src *.py *.c *.cpp *.h *.cu *.pyx
-recursive-include unit_test *.py
-include sample_data/3FITC_4PE_004.fcs
-include sample_data/coulter.lmd

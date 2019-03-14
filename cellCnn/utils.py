@@ -19,11 +19,36 @@ from scipy.cluster.hierarchy import linkage
 from scipy.cluster.hierarchy import fcluster
 from scipy import stats
 from scipy.sparse import coo_matrix
-import fcm
+import flowio
 try:
     import igraph
 except ImportError:
     pass
+
+
+# extra arguments accepted for backwards-compatibility (with the fcm-0.9.1 package)
+def loadFCS(filename, *args, **kwargs):
+    f = flowio.FlowData(filename)
+    events = np.reshape(f.events, (-1, f.channel_count))
+    channels = []
+    for i in range(1, f.channel_count+1):
+        key = str(i)
+        if 'PnS' in f.channels[key]:
+            channels.append(f.channels[key]['PnS'])
+        elif 'PnN' in f.channels[key]:
+            channels.append(f.channels[key]['PnS'])
+        else:
+            channels.append('None')
+    return FcmData(events, channels)
+
+class FcmData(object):
+    def __init__(self, events, channels):
+        self.channels = channels
+        self.events = events
+        self.shape = events.shape
+
+    def __array__(self):
+        return self.events
 
 
 def mkdir_p(path):
@@ -40,7 +65,7 @@ def get_data(indir, info, marker_names, do_arcsinh, cofactor):
     sample_list = []
     for fname in fnames:
         full_path = os.path.join(indir, fname)
-        fcs = fcm.loadFCS(full_path, transform=None, auto_comp=False)
+        fcs = loadFCS(full_path, transform=None, auto_comp=False)
         marker_idx = [fcs.channels.index(name) for name in marker_names]
         x = np.asarray(fcs)[:, marker_idx]
         if do_arcsinh:

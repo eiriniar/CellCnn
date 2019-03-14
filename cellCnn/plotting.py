@@ -33,7 +33,7 @@ except ImportError:
 
 def plot_results(results, samples, phenotypes, labels, outdir,
                  filter_diff_thres=.2, filter_response_thres=0, response_grad_cutoff=None,
-                 stat_test=None, positive_filters_only=False, log_yscale=False,
+                 stat_test=None, log_yscale=False,
                  group_a='group A', group_b='group B', group_names=None, tsne_ncell=10000,
                  regression=False, clustering=None, add_filter_response=False,
                  percentage_drop_cluster=.1, min_cluster_freq=0.2, show_filters=True):
@@ -74,9 +74,6 @@ def plot_results(results, samples, phenotypes, labels, outdir,
             Name of the second class.
         - group_names :
             List of names for the different phenotype classes.
-        - positive_filters_only :
-            If True, only consider filters associated with higher cell population frequency in the
-            positive class.
         - log_yscale :
             If True, display the y-axis of the boxplot figure (see plots description below) in
             logarithmic scale.
@@ -161,7 +158,6 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         plot_filters(results, labels, outdir)
     # get discriminative filter indices in consensus matrix
     keep_idx = discriminative_filters(results, outdir, filter_diff_thres,
-                                      positive_filters_only=positive_filters_only,
                                       show_filters=show_filters)
 
     # encode the sample and sample-phenotype for each cell
@@ -300,7 +296,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
     return return_filters
 
 
-def discriminative_filters(results, outdir, filter_diff_thres, positive_filters_only=False, show_filters=True):
+def discriminative_filters(results, outdir, filter_diff_thres, show_filters=True):
     mkdir_p(outdir)
     filters = results['selected_filters']
     # select the discriminative filters based on the validation set
@@ -308,9 +304,6 @@ def discriminative_filters(results, outdir, filter_diff_thres, positive_filters_
         filter_diff = results['filter_diff']
         filter_diff[np.isnan(filter_diff)] = -1
 
-        # do we want to consider negative filters?
-        if positive_filters_only:
-            filter_diff = filter_diff * np.sign(filters[:, -1])
         sorted_idx = np.argsort(filter_diff)[::-1]
         filter_diff = filter_diff[sorted_idx]
         keep_idx = [sorted_idx[0]]
@@ -335,9 +328,6 @@ def discriminative_filters(results, outdir, filter_diff_thres, positive_filters_
         filter_diff = results['filter_tau']
         filter_diff[np.isnan(filter_diff)] = -1
 
-        # do we want to consider negative filters?
-        if positive_filters_only:
-            filter_diff = filter_diff * np.sign(filters[:, -1])
         sorted_idx = np.argsort(filter_diff)[::-1]
         filter_diff = filter_diff[sorted_idx]
         keep_idx = [sorted_idx[0]]

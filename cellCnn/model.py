@@ -18,7 +18,7 @@ from cellCnn.utils import cluster_profiles, keras_param_vector
 from cellCnn.utils import generate_subsets, generate_biased_subsets
 from cellCnn.utils import get_filters_classification, get_filters_regression
 from cellCnn.utils import mkdir_p
-from cellCnn.theano_utils import select_top, float32, int32, activity_KL
+from cellCnn.theano_utils import select_top, float32, int32
 
 from keras.layers import Input, Dense, Lambda, Activation, Dropout
 from keras.layers.convolutional import Convolution1D
@@ -75,8 +75,6 @@ class CellCnn(object):
             Coefficient for L1 weight regularization.
         - coeff_l2 :
             Coefficient for L2 weight regularization.
-        - coeff_activity :
-            Coefficient for regularizing the activity at each filter.
         - max_epochs :
             Maximum number of iterations through the data.
         - patience :
@@ -94,7 +92,7 @@ class CellCnn(object):
     def __init__(self, ncell=200, nsubset=1000, per_sample=False, subset_selection='random',
                  maxpool_percentages=[0.01, 1., 5., 20., 100.], scale=True, quant_normed=False,
                  nfilter_choice=range(3, 10), dropout='auto', dropout_p=.5,
-                 coeff_l1=0, coeff_l2=0.0001, coeff_activity=0, learning_rate=None,
+                 coeff_l1=0, coeff_l2=0.0001, learning_rate=None,
                  regression=False, max_epochs=20, patience=5, nrun=15, dendrogram_cutoff=0.4,
                  accur_thres=.95, verbose=1):
 
@@ -112,7 +110,6 @@ class CellCnn(object):
         self.learning_rate = learning_rate
         self.coeff_l1 = coeff_l1
         self.coeff_l2 = coeff_l2
-        self.coeff_activity = coeff_activity
         self.dropout = dropout
         self.dropout_p = dropout_p
         self.max_epochs = max_epochs
@@ -169,7 +166,7 @@ class CellCnn(object):
                           learning_rate=self.learning_rate,
                           coeff_l1=self.coeff_l1, coeff_l2=self.coeff_l2,
                           dropout=self.dropout, dropout_p=self.dropout_p,
-                          coeff_activity=self.coeff_activity, max_epochs=self.max_epochs,
+                          max_epochs=self.max_epochs,
                           patience=self.patience, dendrogram_cutoff=self.dendrogram_cutoff,
                           accur_thres=self.accur_thres, verbose=self.verbose)
         self.results = res
@@ -217,7 +214,7 @@ class CellCnn(object):
 
             # build the model architecture
             model = build_model(ncell_per_sample, nmark,
-                                nfilter=nfilter, coeff_l1=0, coeff_l2=0, coeff_activity=0,
+                                nfilter=nfilter, coeff_l1=0, coeff_l2=0,
                                 k=ncell_pooled, dropout=False, dropout_p=0,
                                 regression=self.regression, n_classes=n_classes, lr=0.01)
 
@@ -239,7 +236,7 @@ def train_model(train_samples, train_phenotypes, outdir,
                 ncell=200, nsubset=1000, per_sample=False, subset_selection='random',
                 maxpool_percentages=[0.01, 1., 5., 20., 100.], nfilter_choice=range(3, 10),
                 learning_rate=None, coeff_l1=0, coeff_l2=1e-4, dropout='auto', dropout_p=.5,
-                coeff_activity=0, max_epochs=20, patience=5,
+                max_epochs=20, patience=5,
                 dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
 
     """ Performs a CellCnn analysis """
@@ -436,7 +433,7 @@ def train_model(train_samples, train_phenotypes, outdir,
 
         # build the neural network
         model = build_model(ncell, nmark, nfilter,
-                            coeff_l1, coeff_l2, coeff_activity, k,
+                            coeff_l1, coeff_l2, k,
                             dropout, dropout_p, regression, n_classes, lr)
 
         filepath = os.path.join(outdir, 'nnet_run_%d.hdf5' % irun)
@@ -517,7 +514,7 @@ def train_model(train_samples, train_phenotypes, outdir,
             results['filter_diff'] = filter_diff
     return results
 
-def build_model(ncell, nmark, nfilter, coeff_l1, coeff_l2, coeff_activity,
+def build_model(ncell, nmark, nfilter, coeff_l1, coeff_l2,
                 k, dropout, dropout_p, regression, n_classes, lr=0.01):
 
     """ Builds the neural network architecture """
@@ -528,7 +525,6 @@ def build_model(ncell, nmark, nfilter, coeff_l1, coeff_l2, coeff_activity,
     # the filters
     conv = Convolution1D(nfilter, 1, activation='linear',
                          W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-                         activity_regularizer=activity_KL(l=coeff_activity, p=0.05),
                          name='conv1')(data_input)
     conv = Activation('relu')(conv)
     # the cell grouping part

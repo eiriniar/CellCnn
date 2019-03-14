@@ -35,13 +35,8 @@ After having Python2.7 running on your system, please do the following to instal
 
 ----
 
-Note: For the analysis of mass/flow cytometry data, we use the package ``fcm-0.9.1``.
-This package contains a call to a deprecated matplotlib function that raises an exception.
-As a workaround, we provide a slightly modified version of ``fcm-0.9.1`` that avoids the deprecated call.
-To install it you can do the following: ::
-
-    cd fcm-0.9.1
-    python setup.py install
+Changed in release v0.2: we now use the lightweight ```flowIO``` package for reading mass/flow cytometry data.
+Thanks to the package author Scott White for pointing out this possibility! 
 
 Usage
 =====

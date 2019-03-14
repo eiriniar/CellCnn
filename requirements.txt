@@ -10,4 +10,5 @@ PyYAML
 git+https://github.com/Theano/Theano.git#egg=Theano
 Keras==1.0.4
 statsmodels==0.8.0
+FlowIO==0.9.3
 #python-igraph # only for clustering via the louvain method
