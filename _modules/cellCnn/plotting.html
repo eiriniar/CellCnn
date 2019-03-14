@@ -4,24 +4,16 @@
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>cellCnn.plotting &#8212; CellCnn 0.1 documentation</title>
     <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../../',
-        VERSION:     '0.1',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
     <script type="text/javascript" src="../../_static/jquery.js"></script>
     <script type="text/javascript" src="../../_static/underscore.js"></script>
     <script type="text/javascript" src="../../_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
    
@@ -30,13 +22,14 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
-  </head>
-  <body>
+  </head><body>
   
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
+          
+
           <div class="body" role="main">
             
   <h1>Source code for cellCnn.plotting</h1><div class="highlight"><pre>
@@ -75,7 +68,7 @@
 
 <div class="viewcode-block" id="plot_results"><a class="viewcode-back" href="../../code.html#cellCnn.plotting.plot_results">[docs]</a><span class="k">def</span> <span class="nf">plot_results</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">samples</span><span class="p">,</span> <span class="n">phenotypes</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span>
                  <span class="n">filter_diff_thres</span><span class="o">=.</span><span class="mi">2</span><span class="p">,</span> <span class="n">filter_response_thres</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">response_grad_cutoff</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                 <span class="n">stat_test</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">positive_filters_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">log_yscale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">stat_test</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">log_yscale</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">group_a</span><span class="o">=</span><span class="s1">&#39;group A&#39;</span><span class="p">,</span> <span class="n">group_b</span><span class="o">=</span><span class="s1">&#39;group B&#39;</span><span class="p">,</span> <span class="n">group_names</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tsne_ncell</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
                  <span class="n">regression</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">clustering</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">add_filter_response</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">percentage_drop_cluster</span><span class="o">=.</span><span class="mi">1</span><span class="p">,</span> <span class="n">min_cluster_freq</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">show_filters</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
@@ -116,9 +109,6 @@
 <span class="sd">            Name of the second class.</span>
 <span class="sd">        - group_names :</span>
 <span class="sd">            List of names for the different phenotype classes.</span>
-<span class="sd">        - positive_filters_only :</span>
-<span class="sd">            If True, only consider filters associated with higher cell population frequency in the</span>
-<span class="sd">            positive class.</span>
 <span class="sd">        - log_yscale :</span>
 <span class="sd">            If True, display the y-axis of the boxplot figure (see plots description below) in</span>
 <span class="sd">            logarithmic scale.</span>
@@ -203,7 +193,6 @@
         <span class="n">plot_filters</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">outdir</span><span class="p">)</span>
     <span class="c1"># get discriminative filter indices in consensus matrix</span>
     <span class="n">keep_idx</span> <span class="o">=</span> <span class="n">discriminative_filters</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">filter_diff_thres</span><span class="p">,</span>
-                                      <span class="n">positive_filters_only</span><span class="o">=</span><span class="n">positive_filters_only</span><span class="p">,</span>
                                       <span class="n">show_filters</span><span class="o">=</span><span class="n">show_filters</span><span class="p">)</span>
 
     <span class="c1"># encode the sample and sample-phenotype for each cell</span>
@@ -228,7 +217,7 @@
         <span class="n">vmin</span><span class="p">[</span><span class="n">seq_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">seq_index</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">vmax</span><span class="p">[</span><span class="n">seq_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">seq_index</span><span class="p">],</span> <span class="mi">99</span><span class="p">)</span>
     <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;tsne_all_cells&#39;</span><span class="p">)</span>
-    <span class="n">plot_tsne_grid</span><span class="p">(</span><span class="n">x_tsne</span><span class="p">,</span> <span class="n">x_for_tsne</span><span class="p">,</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span><span class="mi">7</span><span class="p">),</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+    <span class="n">plot_tsne_grid</span><span class="p">(</span><span class="n">x_tsne</span><span class="p">,</span> <span class="n">x_for_tsne</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
                    <span class="n">point_size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 
     <span class="n">return_filters</span> <span class="o">=</span> <span class="p">[]</span>
@@ -237,6 +226,10 @@
         <span class="n">b</span> <span class="o">=</span> <span class="n">filters</span><span class="p">[</span><span class="n">i_filter</span><span class="p">,</span> <span class="n">nmark</span><span class="p">]</span>
         <span class="n">g</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">b</span>
         <span class="n">g</span> <span class="o">=</span> <span class="n">g</span> <span class="o">*</span> <span class="p">(</span><span class="n">g</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># skip a filter if it does not select any cell</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">g</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
 
         <span class="n">ecdf</span> <span class="o">=</span> <span class="n">sm</span><span class="o">.</span><span class="n">distributions</span><span class="o">.</span><span class="n">ECDF</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
         <span class="n">gx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">g</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">g</span><span class="p">))</span>
@@ -265,7 +258,7 @@
         <span class="n">z1</span> <span class="o">=</span> <span class="n">z</span><span class="p">[</span><span class="n">condition</span><span class="p">]</span>
         <span class="n">g1</span> <span class="o">=</span> <span class="n">g</span><span class="p">[</span><span class="n">condition</span><span class="p">]</span>
 
-        <span class="c1"># skip a filter if it does not select any cell</span>
+        <span class="c1"># skip a filter if it does not select any cell with the new cutoff threshold</span>
         <span class="k">if</span> <span class="n">x1</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">continue</span>
 
@@ -279,7 +272,7 @@
         <span class="n">g_tsne</span> <span class="o">=</span> <span class="n">g</span><span class="p">[</span><span class="n">tsne_idx</span><span class="p">]</span>
         <span class="n">x_pos</span> <span class="o">=</span> <span class="n">x_for_tsne</span><span class="p">[</span><span class="n">g_tsne</span> <span class="o">&gt;</span> <span class="n">t</span><span class="p">]</span>
         <span class="n">x_tsne_pos</span> <span class="o">=</span> <span class="n">x_tsne</span><span class="p">[</span><span class="n">g_tsne</span> <span class="o">&gt;</span> <span class="n">t</span><span class="p">]</span>
-        <span class="n">plot_tsne_selection_grid</span><span class="p">(</span><span class="n">x_tsne_pos</span><span class="p">,</span> <span class="n">x_pos</span><span class="p">,</span> <span class="n">x_tsne</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="p">,</span> <span class="n">grid_size</span><span class="o">=</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span><span class="mi">7</span><span class="p">),</span>
+        <span class="n">plot_tsne_selection_grid</span><span class="p">(</span><span class="n">x_tsne_pos</span><span class="p">,</span> <span class="n">x_pos</span><span class="p">,</span> <span class="n">x_tsne</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="p">,</span>
                                  <span class="n">fig_path</span><span class="o">=</span><span class="n">fig_path</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">20</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span> <span class="n">s</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
                                  <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">)</span>
 
@@ -338,15 +331,14 @@
     <span class="k">return</span> <span class="n">return_filters</span></div>
 
 
-<span class="k">def</span> <span class="nf">discriminative_filters</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">filter_diff_thres</span><span class="p">,</span> <span class="n">positive_filters_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">show_filters</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">discriminative_filters</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">outdir</span><span class="p">,</span> <span class="n">filter_diff_thres</span><span class="p">,</span> <span class="n">show_filters</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
     <span class="n">mkdir_p</span><span class="p">(</span><span class="n">outdir</span><span class="p">)</span>
+    <span class="n">filters</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;selected_filters&#39;</span><span class="p">]</span>
     <span class="c1"># select the discriminative filters based on the validation set</span>
     <span class="k">if</span> <span class="s1">&#39;filter_diff&#39;</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
         <span class="n">filter_diff</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;filter_diff&#39;</span><span class="p">]</span>
+        <span class="n">filter_diff</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">filter_diff</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
 
-        <span class="c1"># do we want to consider negative filters?</span>
-        <span class="k">if</span> <span class="n">positive_filters_only</span><span class="p">:</span>
-            <span class="n">filter_diff</span> <span class="o">=</span> <span class="n">filter_diff</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">filters</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
         <span class="n">sorted_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">filter_diff</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">filter_diff</span> <span class="o">=</span> <span class="n">filter_diff</span><span class="p">[</span><span class="n">sorted_idx</span><span class="p">]</span>
         <span class="n">keep_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">sorted_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
@@ -369,10 +361,8 @@
 
     <span class="k">elif</span> <span class="s1">&#39;filter_tau&#39;</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
         <span class="n">filter_diff</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;filter_tau&#39;</span><span class="p">]</span>
+        <span class="n">filter_diff</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">filter_diff</span><span class="p">)]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
 
-        <span class="c1"># do we want to consider negative filters?</span>
-        <span class="k">if</span> <span class="n">positive_filters_only</span><span class="p">:</span>
-            <span class="n">filter_diff</span> <span class="o">=</span> <span class="n">filter_diff</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">filters</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
         <span class="n">sorted_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">filter_diff</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">filter_diff</span> <span class="o">=</span> <span class="n">filter_diff</span><span class="p">[</span><span class="n">sorted_idx</span><span class="p">]</span>
         <span class="n">keep_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">sorted_idx</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
@@ -464,7 +454,7 @@
     <span class="n">fig_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outdir</span><span class="p">,</span> <span class="s1">&#39;selected_population_distribution_</span><span class="si">%s</span><span class="s1">.pdf&#39;</span> <span class="o">%</span> <span class="n">suffix</span><span class="p">)</span>
     <span class="n">plot_marker_distribution</span><span class="p">([</span><span class="n">x</span><span class="p">[:,</span> <span class="n">sorted_idx</span><span class="p">],</span> <span class="n">xc</span><span class="p">[:,</span> <span class="n">sorted_idx</span><span class="p">]],</span> <span class="p">[</span><span class="s1">&#39;all cells&#39;</span><span class="p">,</span> <span class="s1">&#39;selected&#39;</span><span class="p">],</span>
                              <span class="n">sorted_labels</span><span class="p">,</span> <span class="n">grid_size</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="n">ks_list</span><span class="o">=</span><span class="n">sorted_ks</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">24</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
-                             <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;red&#39;</span><span class="p">],</span> <span class="n">fig_path</span><span class="o">=</span><span class="n">fig_path</span><span class="p">,</span> <span class="n">hist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                             <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;blue&#39;</span><span class="p">,</span> <span class="s1">&#39;red&#39;</span><span class="p">],</span> <span class="n">fig_path</span><span class="o">=</span><span class="n">fig_path</span><span class="p">,</span> <span class="n">hist</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
     <span class="c1"># for classification, plot a boxplot of per class frequencies</span>
     <span class="c1"># for regression, make a biaxial plot (phenotype vs. frequency)</span>
@@ -574,14 +564,14 @@
                             <span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">seq_index</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
                                      <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i_name</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span> <span class="n">normed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                         <span class="k">else</span><span class="p">:</span>
-                            <span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">seq_index</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i_name</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                            <span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">seq_index</span><span class="p">],</span> <span class="n">shade</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i_name</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
                                         <span class="n">clip</span><span class="o">=</span><span class="p">(</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">))</span>
                     <span class="k">else</span><span class="p">:</span>
                         <span class="k">if</span> <span class="n">hist</span><span class="p">:</span>
                             <span class="n">plt</span><span class="o">.</span><span class="n">hist</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">seq_index</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
                                      <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i_name</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span> <span class="n">normed</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                         <span class="k">else</span><span class="p">:</span>
-                            <span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">seq_index</span><span class="p">],</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i_name</span><span class="p">],</span> <span class="n">clip</span><span class="o">=</span><span class="p">(</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">))</span>
+                            <span class="n">sns</span><span class="o">.</span><span class="n">kdeplot</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">seq_index</span><span class="p">],</span> <span class="n">shade</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">colors</span><span class="p">[</span><span class="n">i_name</span><span class="p">],</span> <span class="n">clip</span><span class="o">=</span><span class="p">(</span><span class="n">lower</span><span class="p">,</span> <span class="n">upper</span><span class="p">))</span>
                 <span class="n">ax</span><span class="o">.</span><span class="n">get_yaxis</span><span class="p">()</span><span class="o">.</span><span class="n">set_ticks</span><span class="p">([])</span>
                 <span class="c1">#ax.get_xaxis().set_ticks([-2, 0, 2, 4])</span>
 
@@ -656,24 +646,19 @@
     <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
-<span class="k">def</span> <span class="nf">plot_tsne_grid</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">grid_size</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span>
+<span class="k">def</span> <span class="nf">plot_tsne_grid</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="n">g_j</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
                    <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">,</span> <span class="n">point_size</span><span class="o">=.</span><span class="mi">1</span><span class="p">):</span>
     <span class="n">ncol</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">g_i</span> <span class="o">=</span> <span class="n">ncol</span> <span class="o">//</span> <span class="n">g_j</span> <span class="k">if</span> <span class="p">(</span><span class="n">ncol</span> <span class="o">%</span> <span class="n">g_j</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">else</span> <span class="n">ncol</span> <span class="o">//</span> <span class="n">g_j</span> <span class="o">+</span> <span class="mi">1</span>
     <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ncol</span><span class="p">)]</span>
 
     <span class="n">sns</span><span class="o">.</span><span class="n">set_style</span><span class="p">(</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
     <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">fig_size</span><span class="p">)</span>
     <span class="n">fig</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
-    <span class="n">g_i</span><span class="p">,</span> <span class="n">g_j</span> <span class="o">=</span> <span class="n">grid_size</span>
-    <span class="c1"># make sure the grid size is consistent with the number of markers</span>
-    <span class="n">gg</span> <span class="o">=</span> <span class="n">g_i</span> <span class="o">*</span> <span class="n">g_j</span>
-    <span class="k">while</span> <span class="n">gg</span> <span class="o">&lt;</span> <span class="n">ncol</span><span class="p">:</span>
-        <span class="n">g_i</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="n">gg</span> <span class="o">=</span> <span class="n">g_i</span> <span class="o">*</span> <span class="n">g_j</span>
     <span class="n">grid</span> <span class="o">=</span> <span class="n">ImageGrid</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="mi">111</span><span class="p">,</span>
                      <span class="n">nrows_ncols</span><span class="o">=</span><span class="p">(</span><span class="n">g_i</span><span class="p">,</span> <span class="n">g_j</span><span class="p">),</span>
-                     <span class="n">ngrids</span><span class="o">=</span><span class="n">ncol</span><span class="p">,</span>
+                     <span class="n">ngrids</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">ncol</span> <span class="o">%</span> <span class="n">g_j</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">ncol</span><span class="p">,</span>
                      <span class="n">aspect</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                      <span class="n">direction</span><span class="o">=</span><span class="s2">&quot;row&quot;</span><span class="p">,</span>
                      <span class="n">axes_pad</span><span class="o">=</span><span class="p">(</span><span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span>
@@ -702,23 +687,18 @@
     <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
     <span class="n">plt</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
-<span class="k">def</span> <span class="nf">plot_tsne_selection_grid</span><span class="p">(</span><span class="n">z_pos</span><span class="p">,</span> <span class="n">x_pos</span><span class="p">,</span> <span class="n">z_neg</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="p">,</span> <span class="n">grid_size</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span>
-                             <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="n">s</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">plot_tsne_selection_grid</span><span class="p">(</span><span class="n">z_pos</span><span class="p">,</span> <span class="n">x_pos</span><span class="p">,</span> <span class="n">z_neg</span><span class="p">,</span> <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="p">,</span> <span class="n">fig_path</span><span class="p">,</span>
+                             <span class="n">labels</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fig_size</span><span class="o">=</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="mi">9</span><span class="p">),</span> <span class="n">g_j</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">s</span><span class="o">=.</span><span class="mi">5</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s1">&#39;png&#39;</span><span class="p">):</span>
     <span class="n">ncol</span> <span class="o">=</span> <span class="n">x_pos</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">g_i</span> <span class="o">=</span> <span class="n">ncol</span> <span class="o">//</span> <span class="n">g_j</span> <span class="k">if</span> <span class="p">(</span><span class="n">ncol</span> <span class="o">%</span> <span class="n">g_j</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">else</span> <span class="n">ncol</span> <span class="o">//</span> <span class="n">g_j</span> <span class="o">+</span> <span class="mi">1</span>
     <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">range</span><span class="p">(</span><span class="n">ncol</span><span class="p">)]</span>
 
     <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">fig_size</span><span class="p">)</span>
     <span class="n">fig</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
-    <span class="n">g_i</span><span class="p">,</span> <span class="n">g_j</span> <span class="o">=</span> <span class="n">grid_size</span>
-    <span class="c1"># make sure the grid size is consistent with the number of markers</span>
-    <span class="n">gg</span> <span class="o">=</span> <span class="n">g_i</span> <span class="o">*</span> <span class="n">g_j</span>
-    <span class="k">while</span> <span class="n">gg</span> <span class="o">&lt;</span> <span class="n">ncol</span><span class="p">:</span>
-        <span class="n">g_i</span> <span class="o">+=</span> <span class="mi">1</span>
-        <span class="n">gg</span> <span class="o">=</span> <span class="n">g_i</span> <span class="o">*</span> <span class="n">g_j</span>
     <span class="n">grid</span> <span class="o">=</span> <span class="n">ImageGrid</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="mi">111</span><span class="p">,</span>
                      <span class="n">nrows_ncols</span><span class="o">=</span><span class="p">(</span><span class="n">g_i</span><span class="p">,</span> <span class="n">g_j</span><span class="p">),</span>
-                     <span class="n">ngrids</span><span class="o">=</span><span class="n">ncol</span><span class="p">,</span>
+                     <span class="n">ngrids</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="n">ncol</span> <span class="o">%</span> <span class="n">g_j</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">ncol</span><span class="p">,</span>
                      <span class="n">aspect</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                      <span class="n">direction</span><span class="o">=</span><span class="s2">&quot;row&quot;</span><span class="p">,</span>
                      <span class="n">axes_pad</span><span class="o">=</span><span class="p">(</span><span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">),</span>
@@ -822,10 +802,27 @@
 </pre></div>
 
           </div>
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper"><div class="relations">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">CellCnn</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../code.html">Documentation</a></li>
+</ul>
+
+<div class="relations">
 <h3>Related Topics</h3>
 <ul>
   <li><a href="../../index.html">Documentation overview</a><ul>
@@ -836,14 +833,24 @@
 </div>
 <div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
+    <div class="searchformwrapper">
     <form class="search" action="../../search.html" method="get">
-      <div><input type="text" name="q" /></div>
-      <div><input type="submit" value="Go" /></div>
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+    </div>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
         </div>
       </div>
       <div class="clearer"></div>
@@ -852,8 +859,8 @@
       &copy;2017, Eirini Arvaniti.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
     </div>
 

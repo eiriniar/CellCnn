@@ -4,24 +4,16 @@
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>Documentation &#8212; CellCnn 0.1 documentation</title>
     <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    './',
-        VERSION:     '0.1',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '.html',
-        HAS_SOURCE:  true,
-        SOURCELINK_SUFFIX: '.txt'
-      };
-    </script>
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <script type="text/javascript" src="_static/language_data.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="prev" title="Welcome to CellCnn’s documentation!" href="index.html" />
@@ -31,13 +23,14 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
 
-  </head>
-  <body>
+  </head><body>
   
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
+          
+
           <div class="body" role="main">
             
   <div class="section" id="documentation">
@@ -48,7 +41,7 @@
 <p>This module contains functions for performing a CellCnn analysis.</p>
 <dl class="class">
 <dt id="cellCnn.model.CellCnn">
-<em class="property">class </em><code class="descclassname">cellCnn.model.</code><code class="descname">CellCnn</code><span class="sig-paren">(</span><em>ncell=200, nsubset=1000, per_sample=False, subset_selection='random', maxpool_percentages=[0.01, 1.0, 5.0, 20.0, 100.0], scale=True, quant_normed=False, nfilter_choice=[3, 4, 5, 6, 7, 8, 9], dropout='auto', dropout_p=0.5, coeff_l1=0, coeff_l2=0.0001, coeff_activity=0, learning_rate=None, regression=False, max_epochs=20, patience=5, nrun=15, dendrogram_cutoff=0.4, accur_thres=0.95, verbose=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/model.html#CellCnn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.model.CellCnn" title="Permalink to this definition">¶</a></dt>
+<em class="property">class </em><code class="descclassname">cellCnn.model.</code><code class="descname">CellCnn</code><span class="sig-paren">(</span><em>ncell=200, nsubset=1000, per_sample=False, subset_selection='random', maxpool_percentages=[0.01, 1.0, 5.0, 20.0, 100.0], scale=True, quant_normed=False, nfilter_choice=[3, 4, 5, 6, 7, 8, 9], dropout='auto', dropout_p=0.5, coeff_l1=0, coeff_l2=0.0001, learning_rate=None, regression=False, max_epochs=20, patience=5, nrun=15, dendrogram_cutoff=0.4, accur_thres=0.95, verbose=1</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/model.html#CellCnn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.model.CellCnn" title="Permalink to this definition">¶</a></dt>
 <dd><p>Creates a CellCnn model.</p>
 <dl class="docutils">
 <dt>Args:</dt>
@@ -137,11 +130,6 @@ learning rates in the range [0.001, 0.01] will be tried out.</dd>
 <li><dl class="first docutils">
 <dt>coeff_l2 :</dt>
 <dd>Coefficient for L2 weight regularization.</dd>
-</dl>
-</li>
-<li><dl class="first docutils">
-<dt>coeff_activity :</dt>
-<dd>Coefficient for regularizing the activity at each filter.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
@@ -265,7 +253,7 @@ minimum size in <cite>new_samples</cite>.</dd>
 <p>This module contains functions for plotting the results of a CellCnn analysis.</p>
 <dl class="function">
 <dt id="cellCnn.plotting.plot_results">
-<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>filter_diff_thres=0.2</em>, <em>filter_response_thres=0</em>, <em>response_grad_cutoff=None</em>, <em>stat_test=None</em>, <em>positive_filters_only=False</em>, <em>log_yscale=False</em>, <em>group_a='group A'</em>, <em>group_b='group B'</em>, <em>group_names=None</em>, <em>tsne_ncell=10000</em>, <em>regression=False</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>min_cluster_freq=0.2</em>, <em>show_filters=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results" title="Permalink to this definition">¶</a></dt>
+<code class="descclassname">cellCnn.plotting.</code><code class="descname">plot_results</code><span class="sig-paren">(</span><em>results</em>, <em>samples</em>, <em>phenotypes</em>, <em>labels</em>, <em>outdir</em>, <em>filter_diff_thres=0.2</em>, <em>filter_response_thres=0</em>, <em>response_grad_cutoff=None</em>, <em>stat_test=None</em>, <em>log_yscale=False</em>, <em>group_a='group A'</em>, <em>group_b='group B'</em>, <em>group_names=None</em>, <em>tsne_ncell=10000</em>, <em>regression=False</em>, <em>clustering=None</em>, <em>add_filter_response=False</em>, <em>percentage_drop_cluster=0.1</em>, <em>min_cluster_freq=0.2</em>, <em>show_filters=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/cellCnn/plotting.html#plot_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#cellCnn.plotting.plot_results" title="Permalink to this definition">¶</a></dt>
 <dd><p>Plots the results of a CellCnn analysis.</p>
 <dl class="docutils">
 <dt>Args:</dt>
@@ -298,10 +286,10 @@ minimum size in <cite>new_samples</cite>.</dd>
 <li><dl class="first docutils">
 <dt>filter_diff_thres :</dt>
 <dd>Threshold that defines which filters are most discriminative. Given an array
-<code class="docutils literal"><span class="pre">filter_diff</span></code> of average cell filter response differences between classes,
-sorted in decreasing order, keep a filter <code class="docutils literal"><span class="pre">i,</span> <span class="pre">i</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> if it holds that
-<code class="docutils literal"><span class="pre">filter_diff[i-1]</span> <span class="pre">-</span> <span class="pre">filter_diff[i]</span> <span class="pre">&lt;</span> <span class="pre">filter_diff_thres</span> <span class="pre">*</span> <span class="pre">filter_diff[i-1]</span></code>.
-For regression problems, the array <code class="docutils literal"><span class="pre">filter_diff</span></code> contains Kendall’s tau
+<code class="docutils literal notranslate"><span class="pre">filter_diff</span></code> of average cell filter response differences between classes,
+sorted in decreasing order, keep a filter <code class="docutils literal notranslate"><span class="pre">i,</span> <span class="pre">i</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> if it holds that
+<code class="docutils literal notranslate"><span class="pre">filter_diff[i-1]</span> <span class="pre">-</span> <span class="pre">filter_diff[i]</span> <span class="pre">&lt;</span> <span class="pre">filter_diff_thres</span> <span class="pre">*</span> <span class="pre">filter_diff[i-1]</span></code>.
+For regression problems, the array <code class="docutils literal notranslate"><span class="pre">filter_diff</span></code> contains Kendall’s tau
 values for each filter.</dd>
 </dl>
 </li>
@@ -337,12 +325,6 @@ classification problems.</dd>
 <li><dl class="first docutils">
 <dt>group_names :</dt>
 <dd>List of names for the different phenotype classes.</dd>
-</dl>
-</li>
-<li><dl class="first docutils">
-<dt>positive_filters_only :</dt>
-<dd>If True, only consider filters associated with higher cell population frequency in the
-positive class.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
@@ -404,13 +386,13 @@ other memebers of the cluster). We call these selected filters “consensus filt
 To compute this difference for a filter, we first choose a filter-specific class, that’s
 the class with highest output weight connection to the filter. Then we compute the
 average cell filter response (value after the pooling layer) for validation samples
-belonging to the filter-specific class (<code class="docutils literal"><span class="pre">v1</span></code>) and the average cell filter response
-for validation samples not belonging to the filter-specific class (<code class="docutils literal"><span class="pre">v0</span></code>).
-The difference is computed as <code class="docutils literal"><span class="pre">v1</span> <span class="pre">-</span> <span class="pre">v0</span></code>. For regression problems, we cannot compute
+belonging to the filter-specific class (<code class="docutils literal notranslate"><span class="pre">v1</span></code>) and the average cell filter response
+for validation samples not belonging to the filter-specific class (<code class="docutils literal notranslate"><span class="pre">v0</span></code>).
+The difference is computed as <code class="docutils literal notranslate"><span class="pre">v1</span> <span class="pre">-</span> <span class="pre">v0</span></code>. For regression problems, we cannot compute
 a difference between classes. Instead we compute Kendall’s rank correlation coefficient
 between the predictions of each individual filter (value after the pooling layer) and
 the true response values.
-This plot helps decide on a cutoff (<code class="docutils literal"><span class="pre">filter_diff_thres</span></code> parameter) for selecting
+This plot helps decide on a cutoff (<code class="docutils literal notranslate"><span class="pre">filter_diff_thres</span></code> parameter) for selecting
 discriminative filters.</dd>
 </dl>
 </li>
@@ -420,19 +402,19 @@ discriminative filters.</dd>
 </dl>
 </li>
 </ul>
-<p>In addition, the following plots are produced for each selected filter (e.g. filter <code class="docutils literal"><span class="pre">i</span></code>):</p>
+<p>In addition, the following plots are produced for each selected filter (e.g. filter <code class="docutils literal notranslate"><span class="pre">i</span></code>):</p>
 <ul class="last simple">
 <li><dl class="first docutils">
 <dt>cdf_filter_i.pdf :</dt>
-<dd>Cumulative distribution function of cell filter response for filter <code class="docutils literal"><span class="pre">i</span></code>. This plot
-helps decide on a cutoff (<code class="docutils literal"><span class="pre">filter_response_thres</span></code> parameter) for selecting the
+<dd>Cumulative distribution function of cell filter response for filter <code class="docutils literal notranslate"><span class="pre">i</span></code>. This plot
+helps decide on a cutoff (<code class="docutils literal notranslate"><span class="pre">filter_response_thres</span></code> parameter) for selecting the
 responding cell population.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
 <dt>selected_population_distribution_filter_i.pdf :</dt>
 <dd>Histograms of univariate marker expression profiles for the cell population selected by
-filter <code class="docutils literal"><span class="pre">i</span></code> vs all cells.</dd>
+filter <code class="docutils literal notranslate"><span class="pre">i</span></code> vs all cells.</dd>
 </dl>
 </li>
 <li><dl class="first docutils">
@@ -462,18 +444,30 @@ cell population frequencies vs response variable is generated.</dd>
 
 
           </div>
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
         <div class="sphinxsidebarwrapper">
-  <h3><a href="index.html">Table Of Contents</a></h3>
-  <ul>
-<li><a class="reference internal" href="#">Documentation</a><ul>
-<li><a class="reference internal" href="#module-cellCnn.model">model</a></li>
-<li><a class="reference internal" href="#module-cellCnn.plotting">plotting</a></li>
+<h1 class="logo"><a href="index.html">CellCnn</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-cellCnn.model">model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#module-cellCnn.plotting">plotting</a></li>
 </ul>
 </li>
 </ul>
+
 <div class="relations">
 <h3>Related Topics</h3>
 <ul>
@@ -482,23 +476,26 @@ cell population frequencies vs response variable is generated.</dd>
   </ul></li>
 </ul>
 </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/code.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
 <div id="searchbox" style="display: none" role="search">
   <h3>Quick search</h3>
+    <div class="searchformwrapper">
     <form class="search" action="search.html" method="get">
-      <div><input type="text" name="q" /></div>
-      <div><input type="submit" value="Go" /></div>
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
       <input type="hidden" name="check_keywords" value="yes" />
       <input type="hidden" name="area" value="default" />
     </form>
+    </div>
 </div>
 <script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
         </div>
       </div>
       <div class="clearer"></div>
@@ -507,8 +504,8 @@ cell population frequencies vs response variable is generated.</dd>
       &copy;2017, Eirini Arvaniti.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
       <a href="_sources/code.rst.txt"
