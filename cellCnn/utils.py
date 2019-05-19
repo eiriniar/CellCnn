@@ -33,10 +33,10 @@ def loadFCS(filename, *args, **kwargs):
     channels = []
     for i in range(1, f.channel_count+1):
         key = str(i)
-        if 'PnS' in f.channels[key]:
+        if 'PnS' in f.channels[key] and f.channels[key]['PnS'] != u' ':
             channels.append(f.channels[key]['PnS'])
-        elif 'PnN' in f.channels[key]:
-            channels.append(f.channels[key]['PnS'])
+        elif 'PnN' in f.channels[key] and f.channels[key]['PnN'] != u' ':
+            channels.append(f.channels[key]['PnN'])
         else:
             channels.append('None')
     return FcmData(events, channels)
