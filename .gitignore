@@ -3,13 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-cellCnn/examples/private_examples
-cellCnn/examples/out*
-
+# macOS
 .DS_Store
-overview_CellCnn.txt
-cellCnn/bhtsne.py
-cellCnn/siamese_net.py
+.idea
 
 # data files
 *.pkl
@@ -23,10 +19,6 @@ cellCnn/siamese_net.py
 *.pdf
 *.jpg
 *.svg
-
-scripts_for_reading_datasets/
-looping_scripts/
-private_examples/
 
 # C extensions
 *.so

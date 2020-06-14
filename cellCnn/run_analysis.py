@@ -1,4 +1,3 @@
-
 """ Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
 
 This module supports a CellCnn analysis from the command line.
@@ -8,13 +7,17 @@ This module supports a CellCnn analysis from the command line.
 import argparse
 import os
 import sys
-import cPickle as pickle
+import pickle
+import logging
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import StratifiedKFold, KFold
 from cellCnn.utils import get_data, save_results, mkdir_p, get_selected_cells
 from cellCnn.plotting import plot_results, plot_filters, discriminative_filters
 from cellCnn.model import CellCnn
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def main():
@@ -53,7 +56,8 @@ def main():
                         help='do not z-transform features (mean=0, std=1) prior to training')
     parser.set_defaults(scale=True)
     parser.add_argument('--quant_normed', action='store_true', default=False,
-                        help='only use this option if the input data already lies in the [0, 1] interval, e.g. after quantile normalization')
+                        help='only use this option if the input data already lies in the [0, 1] interval,'
+                             'e.g. after quantile normalization')
 
     # multi-cell input specific
     parser.add_argument('--ncell', type=int, help='number of cells per multi-cell input',
@@ -92,7 +96,7 @@ def main():
     parser.add_argument('--dendrogram_cutoff', type=float, default=.4,
                         help='cutoff for hierarchical clustering of filter weights')
     parser.add_argument('--accur_thres', type=float, default=.9,
-                        help='keep filters from models achieving at least this accuracy ' \
+                        help='keep filters from models achieving at least this accuracy '
                              ' (or at least from the best 3 models)')
     parser.add_argument('-v', '--verbose', type=int, choices=[0, 1], default=1,
                         help='output verbosity')
@@ -103,7 +107,7 @@ def main():
     parser.add_argument('--filter_response_thres', type=float, default=0,
                         help='threshold that defines the selected cell population per filter')
     parser.add_argument('--stat_test', choices=[None, 'ttest', 'mannwhitneyu'],
-                        help='statistical test for comparing cell population frequencies of two ' \
+                        help='statistical test for comparing cell population frequencies of two '
                              'groups of samples')
     parser.add_argument('--group_a', default='group A',
                         help='name of the first class')
@@ -141,13 +145,8 @@ def main():
     train_phenotypes = [phenotypes[i] for i in train]
     valid_phenotypes = [phenotypes[i] for i in val]
 
-    print '\nSamples used for model training:'
-    for i in train:
-        print fcs_info[i]
-    print '\nSamples used for validation:'
-    for i in val:
-        print fcs_info[i]
-    print
+    logger.info(f"Samples used for model training: {[fcs_info[i] for i in train]}")
+    logger.info(f"Samples used for validation: {[fcs_info[i] for i in val]}")
 
     # always generate multi-cell inputs on a per-sample basis for regression
     if args.regression:
@@ -219,15 +218,15 @@ def main():
             sample_names = [name.split('.fcs')[0] for name in list(fcs_info[:, 0])]
             # for each sample
             for x, x_name in zip(samples, sample_names):
-                flags = np.zeros((x.shape[0], 2*nfilter))
+                flags = np.zeros((x.shape[0], 2 * nfilter))
                 columns = []
                 # for each filter
                 for i, (filter_idx, thres) in enumerate(filter_info):
-                    flags[:, 2*i:2*(i+1)] = get_selected_cells(
+                    flags[:, 2 * i:2 * (i + 1)] = get_selected_cells(
                         results['selected_filters'][filter_idx], x, results['scaler'], thres, True)
                     columns += ['filter_%d_continuous' % filter_idx, 'filter_%d_binary' % filter_idx]
                 df = pd.DataFrame(flags, columns=columns)
-                df.to_csv(os.path.join(csv_dir, x_name+'_selected_cells.csv'), index=False)
+                df.to_csv(os.path.join(csv_dir, x_name + '_selected_cells.csv'), index=False)
 
 
 if __name__ == '__main__':

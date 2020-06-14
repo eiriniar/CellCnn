@@ -1,4 +1,3 @@
-
 """ Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
 
 This module contains functions for plotting the results of a CellCnn analysis.
@@ -7,16 +6,16 @@ This module contains functions for plotting the results of a CellCnn analysis.
 
 import os
 import sys
+import logging
 from collections import Counter
 import numpy as np
 import pandas as pd
 from scipy import stats
 from sklearn.cluster import DBSCAN
 from sklearn.manifold import TSNE
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.neighbors import NearestNeighbors
-from sklearn.utils import shuffle
 import matplotlib
+
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -25,19 +24,21 @@ from mpl_toolkits.axes_grid1 import ImageGrid
 import seaborn as sns
 from cellCnn.utils import mkdir_p
 import statsmodels.api as sm
+
 try:
     from cellCnn.utils import create_graph
 except ImportError:
     pass
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def plot_results(results, samples, phenotypes, labels, outdir,
                  filter_diff_thres=.2, filter_response_thres=0, response_grad_cutoff=None,
                  stat_test=None, log_yscale=False,
                  group_a='group A', group_b='group B', group_names=None, tsne_ncell=10000,
-                 regression=False, clustering=None, add_filter_response=False,
-                 percentage_drop_cluster=.1, min_cluster_freq=0.2, show_filters=True):
-
+                 regression=False, show_filters=True):
     """ Plots the results of a CellCnn analysis.
 
     Args:
@@ -77,8 +78,6 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         - log_yscale :
             If True, display the y-axis of the boxplot figure (see plots description below) in
             logarithmic scale.
-        - clustering: None | 'dbscan' | 'louvain'
-            Post-processing option for selected cell populations. Default is None.
         - tsne_ncell :
             Number of cells to include in t-SNE calculations and plots.
         - regression :
@@ -149,7 +148,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
     nmark = samples[0].shape[1]
 
     if results['selected_filters'] is not None:
-        print 'Loading the weights of consensus filters.'
+        logger.info("Loading the weights of consensus filters.")
         filters = results['selected_filters']
     else:
         sys.exit('Consensus filters were not found.')
@@ -173,7 +172,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
     if results['scaler'] is not None:
         x = results['scaler'].transform(x)
 
-    print 'Computing t-SNE projection...'
+    logger.info("Computing t-SNE projection...")
     tsne_idx = np.random.choice(x.shape[0], tsne_ncell)
     x_for_tsne = x[tsne_idx].copy()
     x_tsne = TSNE(n_components=2).fit_transform(x_for_tsne)
@@ -209,7 +208,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
             bx = np.array(a[0].get_xdata())[::-1]
             b_diff_idx = np.where(by[:-1] - by[1:] >= response_grad_cutoff)[0]
             if len(b_diff_idx) > 0:
-                t = bx[b_diff_idx[0]+1]
+                t = bx[b_diff_idx[0] + 1]
         plt.plot((t, t), (np.min(gy), 1.), 'r--')
         plt.xlabel('Cell filter response')
         plt.ylabel('Cumulative distribution function (CDF)')
@@ -240,65 +239,18 @@ def plot_results(results, samples, phenotypes, labels, outdir,
         plot_tsne_selection_grid(x_tsne_pos, x_pos, x_tsne, vmin, vmax,
                                  fig_path=fig_path, labels=labels, fig_size=(20, 20), s=5,
                                  suffix='png')
-
-        if clustering is None:
-            suffix = 'filter_%d' % i_filter
-            plot_selected_subset(x1, z1, x, labels, sample_sizes, phenotypes,
-                                 outdir, suffix, stat_test, log_yscale,
-                                 group_a, group_b, group_names, regression)
-        else:
-            if clustering == 'louvain':
-                print 'Creating a k-NN graph with %d/%d cells...' % (x1.shape[0], x.shape[0])
-                k = 10
-                G = create_graph(x1, k, g1, add_filter_response)
-                print 'Identifying cell communities...'
-                cl = G.community_fastgreedy()
-                clusters = np.array(cl.as_clustering().membership)
-            else:
-                print 'Clustering using the dbscan algorithm...'
-                eps = set_dbscan_eps(x1, os.path.join(outdir, 'kNN_distances.png'))
-                cl = DBSCAN(eps=eps, min_samples=5, metric='l1')
-                clusters = cl.fit_predict(x1)
-
-            # discard outliers, i.e. clusters with very few cells
-            c = Counter(clusters)
-            cluster_ids = []
-            min_cells = int(min_cluster_freq * x1.shape[0])
-            for key, val in c.items():
-                if (key != -1) and (val > min_cells):
-                    cluster_ids.append(key)
-
-            num_clusters = len(cluster_ids)
-            scores = np.zeros(num_clusters)
-            for j in range(num_clusters):
-                cl_id = cluster_ids[j]
-                scores[j] = np.mean(g1[clusters == cl_id])
-
-            # keep the communities with high cell filter response
-            sorted_idx = np.argsort(scores)[::-1]
-            scores = scores[sorted_idx]
-            keep_idx_comm = [sorted_idx[0]]
-            for i in range(1, num_clusters):
-                if (scores[i-1] - scores[i]) < percentage_drop_cluster * scores[i-1]:
-                    keep_idx_comm.append(sorted_idx[i])
-                else:
-                    break
-
-            for j in keep_idx_comm:
-                cl_id = cluster_ids[j]
-                xc = x1[clusters == cl_id]
-                zc = z1[clusters == cl_id]
-                suffix = 'filter_%d_cluster_%d' % (i_filter, cl_id)
-                plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes,
-                                     outdir, suffix, stat_test, log_yscale,
-                                     group_a, group_b, group_names, regression)
-    print 'Done.\n'
+        suffix = 'filter_%d' % i_filter
+        plot_selected_subset(x1, z1, x, labels, sample_sizes, phenotypes,
+                             outdir, suffix, stat_test, log_yscale,
+                             group_a, group_b, group_names, regression)
+    logger.info("Done.")
     return return_filters
 
 
 def discriminative_filters(results, outdir, filter_diff_thres, show_filters=True):
     mkdir_p(outdir)
-    filters = results['selected_filters']
+    keep_idx = range(results['selected_filters'].shape[0])
+
     # select the discriminative filters based on the validation set
     if 'filter_diff' in results:
         filter_diff = results['filter_diff']
@@ -307,9 +259,9 @@ def discriminative_filters(results, outdir, filter_diff_thres, show_filters=True
         sorted_idx = np.argsort(filter_diff)[::-1]
         filter_diff = filter_diff[sorted_idx]
         keep_idx = [sorted_idx[0]]
-        for i in range(0, len(filter_diff)-1):
-            if (filter_diff[i] - filter_diff[i+1]) < filter_diff_thres * filter_diff[i]:
-                keep_idx.append(sorted_idx[i+1])
+        for i in range(0, len(filter_diff) - 1):
+            if (filter_diff[i] - filter_diff[i + 1]) < filter_diff_thres * filter_diff[i]:
+                keep_idx.append(sorted_idx[i + 1])
             else:
                 break
         if show_filters:
@@ -331,9 +283,9 @@ def discriminative_filters(results, outdir, filter_diff_thres, show_filters=True
         sorted_idx = np.argsort(filter_diff)[::-1]
         filter_diff = filter_diff[sorted_idx]
         keep_idx = [sorted_idx[0]]
-        for i in range(0, len(filter_diff)-1):
-            if (filter_diff[i] - filter_diff[i+1]) < filter_diff_thres * filter_diff[i]:
-                keep_idx.append(sorted_idx[i+1])
+        for i in range(0, len(filter_diff) - 1):
+            if (filter_diff[i] - filter_diff[i + 1]) < filter_diff_thres * filter_diff[i]:
+                keep_idx.append(sorted_idx[i + 1])
             else:
                 break
         if show_filters:
@@ -348,11 +300,7 @@ def discriminative_filters(results, outdir, filter_diff_thres, show_filters=True
             plt.clf()
             plt.close()
 
-    # if no validation samples were provided, keep all consensus filters
-    else:
-        filters = results['selected_filters']
-        keep_idx = range(filters.shape[0])
-    return keep_idx
+    return list(keep_idx)
 
 
 def plot_filters(results, labels, outdir):
@@ -360,9 +308,9 @@ def plot_filters(results, labels, outdir):
     nmark = len(labels)
     # plot the filter weights of the best network
     w_best = results['w_best_net']
-    idx_except_bias = np.array(range(nmark) + range(nmark+1, w_best.shape[1]))
-    nc = w_best.shape[1] - (nmark+1)
-    labels_except_bias = labels + ['out %d' % i for i in range(nc)]
+    idx_except_bias = np.hstack([np.arange(0, nmark), np.arange(nmark + 1, w_best.shape[1])])
+    nc = w_best.shape[1] - (nmark + 1)
+    labels_except_bias = labels + [f"out {i}" for i in range(nc)]
     w_best = w_best[:, idx_except_bias]
     fig_path = os.path.join(outdir, 'best_net_weights.pdf')
     plot_nn_weights(w_best, labels_except_bias, fig_path, fig_size=(10, 10))
@@ -381,9 +329,10 @@ def plot_filters(results, labels, outdir):
     else:
         sys.exit('Consensus filters were not found.')
 
+
 def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_size=(10, 3)):
     if y_labels is None:
-        y_labels = range(w.shape[0])
+        y_labels = np.arange(0, w.shape[0])
 
     if w.shape[0] > 1:
         plt.figure(figsize=fig_size)
@@ -395,11 +344,12 @@ def plot_nn_weights(w, x_labels, fig_path, row_linkage=None, y_labels=None, fig_
         clmap.cax.set_visible(True)
     else:
         plt.figure(figsize=(10, 1.5))
-        ax = sns.heatmap(pd.DataFrame(w, columns=x_labels), robust=True, yticklabels=y_labels)
+        sns.heatmap(pd.DataFrame(w, columns=x_labels), robust=True, yticklabels=y_labels)
         plt.tight_layout()
     plt.savefig(fig_path)
     plt.clf()
     plt.close()
+
 
 def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, suffix,
                          stat_test=None, log_yscale=False,
@@ -470,7 +420,7 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
             if n_pheno == 2:
                 group_names = [group_a, group_b]
             else:
-                group_names = ['group %d' % (y_i+1) for y_i in range(n_pheno)]
+                group_names = [f"group {y_i + 1}" for y_i in range(n_pheno)]
         box_grade = []
         for group_name, y_i in zip(group_names, range(n_pheno)):
             box_grade += [group_name] * len(frequencies[y_i])
@@ -497,6 +447,7 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
         plt.clf()
         plt.close()
 
+
 def plot_marker_distribution(datalist, namelist, labels, grid_size, fig_path=None, letter_size=16,
                              figsize=(9, 9), ks_list=None, colors=None, hist=False):
     nmark = len(labels)
@@ -516,7 +467,7 @@ def plot_marker_distribution(datalist, namelist, labels, grid_size, fig_path=Non
                 if ks_list is not None:
                     ax.text(.5, 1.2, labels[seq_index], fontsize=letter_size, ha='center',
                             transform=ax.transAxes)
-                    ax.text(.5, 1.02, ks_list[seq_index], fontsize=letter_size-4, ha='center',
+                    ax.text(.5, 1.02, ks_list[seq_index], fontsize=letter_size - 4, ha='center',
                             transform=ax.transAxes)
                 else:
                     ax.text(.5, 1.1, labels[seq_index], fontsize=letter_size, ha='center',
@@ -538,9 +489,9 @@ def plot_marker_distribution(datalist, namelist, labels, grid_size, fig_path=Non
                         else:
                             sns.kdeplot(x[:, seq_index], shade=True, color=colors[i_name], clip=(lower, upper))
                 ax.get_yaxis().set_ticks([])
-                #ax.get_xaxis().set_ticks([-2, 0, 2, 4])
+                # ax.get_xaxis().set_ticks([-2, 0, 2, 4])
 
-    #plt.legend(loc="upper right", prop={'size':letter_size})
+    # plt.legend(loc="upper right", prop={'size':letter_size})
     plt.legend(bbox_to_anchor=(1.5, 0.9))
     sns.despine()
     if fig_path is not None:
@@ -548,6 +499,7 @@ def plot_marker_distribution(datalist, namelist, labels, grid_size, fig_path=Non
         plt.close()
     else:
         plt.show()
+
 
 def set_dbscan_eps(x, fig_path=None):
     nbrs = NearestNeighbors(n_neighbors=2, metric='l1').fit(x)
@@ -559,6 +511,7 @@ def set_dbscan_eps(x, fig_path=None):
         plt.clf()
         plt.close()
     return np.percentile(distances, 90)
+
 
 def make_biaxial(train_feat, valid_feat, test_feat, train_y, valid_y, test_y, figpath,
                  xlabel=None, ylabel=None, add_legend=False):
@@ -589,15 +542,15 @@ def make_biaxial(train_feat, valid_feat, test_feat, train_y, valid_y, test_y, fi
     a5 = plt.Line2D((0, 1), (0, 0), color='k', marker=(5, 1), linestyle='', markersize=8)
     a6 = plt.Line2D((0, 1), (0, 0), color='k', marker='o', linestyle='', markersize=8)
 
-    #Create legend from custom artist/label lists
+    # Create legend from custom artist/label lists
     if add_legend:
         first_legend = plt.legend([a1, a2, a3], ['healthy', 'CN', 'CBF'], fontsize=16, loc=1,
                                   fancybox=True)
         plt.gca().add_artist(first_legend)
         plt.legend([a4, a5, a6], ['train', 'valid', 'test'], fontsize=16, loc=4, fancybox=True)
 
-    #plt.xlim(-2, 2)
-    #plt.ylim(-2, 2)
+    # plt.xlim(-2, 2)
+    # plt.ylim(-2, 2)
     ax.set_aspect('equal', 'datalim')
     ax.margins(0.1)
     if xlabel is not None:
@@ -610,6 +563,7 @@ def make_biaxial(train_feat, valid_feat, test_feat, train_y, valid_y, test_y, fi
     plt.savefig(figpath, format='eps')
     plt.clf()
     plt.close()
+
 
 def plot_tsne_grid(z, x, fig_path, labels=None, fig_size=(9, 9), g_j=7,
                    suffix='png', point_size=.1):
@@ -634,7 +588,7 @@ def plot_tsne_grid(z, x, fig_path, labels=None, fig_size=(9, 9), g_j=7,
                      cbar_mode="each",
                      cbar_size="8%",
                      cbar_pad="5%",
-                    )
+                     )
     for seq_index in range(ncol):
         ax = grid[seq_index]
         ax.text(0, .92, labels[seq_index],
@@ -642,7 +596,7 @@ def plot_tsne_grid(z, x, fig_path, labels=None, fig_size=(9, 9), g_j=7,
                 transform=ax.transAxes, size=20, weight='bold')
         vmin = np.percentile(x[:, seq_index], 1)
         vmax = np.percentile(x[:, seq_index], 99)
-        #sns.kdeplot(z[:, 0], z[:, 1], colors='gray', cmap=None, linewidths=0.5)
+        # sns.kdeplot(z[:, 0], z[:, 1], colors='gray', cmap=None, linewidths=0.5)
         im = ax.scatter(z[:, 0], z[:, 1], s=point_size, marker='o', c=x[:, seq_index],
                         cmap=cm.jet, alpha=0.5, edgecolors='face', vmin=vmin, vmax=vmax)
         ax.cax.colorbar(im)
@@ -651,6 +605,7 @@ def plot_tsne_grid(z, x, fig_path, labels=None, fig_size=(9, 9), g_j=7,
     plt.savefig('.'.join([fig_path, suffix]), format=suffix)
     plt.clf()
     plt.close()
+
 
 def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, fig_path,
                              labels=None, fig_size=(9, 9), g_j=7, s=.5, suffix='png'):
@@ -674,7 +629,7 @@ def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, fig_path,
                      cbar_mode="each",
                      cbar_size="8%",
                      cbar_pad="5%",
-                    )
+                     )
     for seq_index in range(ncol):
         ax = grid[seq_index]
         ax.text(0, .92, labels[seq_index],
@@ -691,6 +646,7 @@ def plot_tsne_selection_grid(z_pos, x_pos, z_neg, vmin, vmax, fig_path,
     plt.savefig('.'.join([fig_path, suffix]), format=suffix)
     plt.clf()
     plt.close()
+
 
 def plot_2D_map(z, feat, fig_path, s=2, plot_contours=False):
     sns.set_style('white')
@@ -721,6 +677,7 @@ def plot_2D_map(z, feat, fig_path, s=2, plot_contours=False):
     plt.clf()
     plt.close()
 
+
 def plot_tsne_per_sample(z_list, data_labels, fig_dir, fig_size=(9, 9),
                          density=True, scatter=True, colors=None, pref=''):
     if colors is None:
@@ -735,7 +692,7 @@ def plot_tsne_per_sample(z_list, data_labels, fig_dir, fig_size=(9, 9),
     plt.legend(loc="upper left", markerscale=20., scatterpoints=1, fontsize=10)
     plt.xlabel('t-SNE dimension 1', fontsize=20)
     plt.ylabel('t-SNE dimension 2', fontsize=20)
-    plt.savefig(os.path.join(fig_dir, pref+'_tsne_all_samples.png'), format='png')
+    plt.savefig(os.path.join(fig_dir, pref + '_tsne_all_samples.png'), format='png')
     plt.clf()
     plt.close()
 
@@ -745,7 +702,7 @@ def plot_tsne_per_sample(z_list, data_labels, fig_dir, fig_size=(9, 9),
             _fig = plt.figure(figsize=fig_size)
             sns.kdeplot(z[:, 0], z[:, 1], n_levels=30, shade=True)
             plt.title(data_labels[i])
-            plt.savefig(os.path.join(fig_dir, pref+'tsne_density_%d.png' % i), format='png')
+            plt.savefig(os.path.join(fig_dir, pref + 'tsne_density_%d.png' % i), format='png')
             plt.clf()
             plt.close()
 
@@ -755,9 +712,10 @@ def plot_tsne_per_sample(z_list, data_labels, fig_dir, fig_size=(9, 9),
             plt.scatter(z[:, 0], z[:, 1], s=1, marker='o', c=colors[i],
                         alpha=0.5, edgecolors='face')
             plt.title(data_labels[i])
-            plt.savefig(os.path.join(fig_dir, pref+'tsne_scatterplot_%d.png' % i), format='png')
+            plt.savefig(os.path.join(fig_dir, pref + 'tsne_scatterplot_%d.png' % i), format='png')
             plt.clf()
             plt.close()
+
 
 def clean_axis(ax):
     ax.get_xaxis().set_ticks([])

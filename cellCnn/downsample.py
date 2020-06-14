@@ -1,19 +1,22 @@
-
 """ Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
 
 This module contains functions for downsampling.
 
 """
 
+import logging
 import numpy as np
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.utils.extmath import row_norms
 from sklearn.utils import check_random_state
 from sklearn.metrics.pairwise import pairwise_distances
+from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def random_subsample(X, target_nobs, replace=True):
-
     """ Draws subsets of cells uniformly at random. """
 
     nobs = X.shape[0]
@@ -22,6 +25,7 @@ def random_subsample(X, target_nobs, replace=True):
     else:
         indices = np.random.choice(nobs, size=target_nobs, replace=replace)
         return X[indices, :]
+
 
 def weighted_subsample(X, w, target_nobs, replace=True, return_idx=False):
     nobs = X.shape[0]
@@ -33,6 +37,7 @@ def weighted_subsample(X, w, target_nobs, replace=True, return_idx=False):
             return X[indices], indices
         else:
             return X[indices]
+
 
 def weighted_choice(weights, nsample):
     rnd = np.random.random_sample(nsample) * sum(weights)
@@ -46,8 +51,8 @@ def weighted_choice(weights, nsample):
         selected_indices[i_sample] = iw
     return selected_indices
 
-def kmeans_subsample(X, n_clusters, random_state=None, n_local_trials=10):
 
+def kmeans_subsample(X, n_clusters, random_state=None, n_local_trials=10):
     """ Draws subsets of cells according to kmeans++ initialization strategy.
         Code slightly modified from sklearn, kmeans++ initialization. """
 
@@ -95,8 +100,8 @@ def kmeans_subsample(X, n_clusters, random_state=None, n_local_trials=10):
 
     return centers
 
-def outlier_subsample(X, x_ctrl, to_keep, return_idx=False):
 
+def outlier_subsample(X, x_ctrl, to_keep, return_idx=False):
     """ Performs outlier selection. """
 
     outlier_scores = knn_dist(X, x_ctrl, s=100, p=1)
@@ -105,6 +110,7 @@ def outlier_subsample(X, x_ctrl, to_keep, return_idx=False):
         return X[indices], outlier_scores[indices], indices
     else:
         return X[indices], outlier_scores[indices]
+
 
 def knn_dist(x, x_ctrl, s=100, p=1):
     x_tmp = random_subsample(x_ctrl, 200000, replace=False)
@@ -116,22 +122,22 @@ def knn_dist(x, x_ctrl, s=100, p=1):
     assert len(min_dist) == x.shape[0]
     return min_dist
 
+
 def knn_dist_memory_optimized(test_data, train_data, s):
     train_data = random_subsample(train_data, s, replace=False)
     nobs_test = test_data.shape[0]
     bs = 500
     test_kNN_dist = np.zeros(nobs_test)
 
-    print 'going up to: %d' % (nobs_test/bs + 1)
-    for ii in range(nobs_test/bs + 1):
-        print ii
+    logger.info(f"Going up to: {nobs_test / bs + 1}")
+    for ii in tqdm(range(nobs_test / bs + 1)):
         # is this a full batch or is it the last one?
-        if (ii+1)*bs < nobs_test:
-            end = (ii+1)*bs
+        if (ii + 1) * bs < nobs_test:
+            end = (ii + 1) * bs
         else:
             end = -1
 
-        S = test_data[ii*bs:end]
+        S = test_data[ii * bs:end]
         dist = pairwise_distances(X=S, Y=train_data, metric='l1')
-        test_kNN_dist[ii*bs:end] = np.min(dist, axis=1)
+        test_kNN_dist[ii * bs:end] = np.min(dist, axis=1)
     return test_kNN_dist

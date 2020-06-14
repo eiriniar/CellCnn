@@ -8,6 +8,7 @@ This module contains functions for performing a CellCnn analysis.
 import sys
 import os
 import copy
+import logging
 import numpy as np
 from sklearn.model_selection import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
@@ -24,9 +25,11 @@ from keras.layers import Input, Dense, Lambda, Activation, Dropout
 from keras.layers.convolutional import Convolution1D
 from keras.models import Model
 from keras.optimizers import Adam
-from keras.regularizers import l1l2
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.utils.np_utils import to_categorical
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class CellCnn(object):
@@ -91,7 +94,7 @@ class CellCnn(object):
 
     def __init__(self, ncell=200, nsubset=1000, per_sample=False, subset_selection='random',
                  maxpool_percentages=[0.01, 1., 5., 20., 100.], scale=True, quant_normed=False,
-                 nfilter_choice=range(3, 10), dropout='auto', dropout_p=.5,
+                 nfilter_choice=list(range(3, 10)), dropout='auto', dropout_p=.5,
                  coeff_l1=0, coeff_l2=0.0001, learning_rate=None,
                  regression=False, max_epochs=20, patience=5, nrun=15, dendrogram_cutoff=0.4,
                  accur_thres=.95, verbose=1):
@@ -190,7 +193,7 @@ class CellCnn(object):
 
         if ncell_per_sample is None:
             ncell_per_sample = np.min([x.shape[0] for x in new_samples])
-        print 'Predictions based on multi-cell inputs containing %d cells.' % ncell_per_sample
+        logger.info(f"Predictions based on multi-cell inputs containing {ncell_per_sample} cells.")
 
         # z-transform the new samples if we did that for the training samples
         scaler = self.results['scaler']
@@ -210,7 +213,7 @@ class CellCnn(object):
         for i_enum, i in enumerate(sorted_idx):
             nfilter = config['nfilter'][i]
             maxpool_percentage = config['maxpool_percentage'][i]
-            ncell_pooled = max(1, int(maxpool_percentage/100. * ncell_per_sample))
+            ncell_pooled = max(1, int(maxpool_percentage / 100. * ncell_per_sample))
 
             # build the model architecture
             model = build_model(ncell_per_sample, nmark,
@@ -243,7 +246,7 @@ def train_model(train_samples, train_phenotypes, outdir,
     mkdir_p(outdir)
 
     if nrun < 3:
-        print 'The nrun argument should be >= 3, setting it to 3.'
+        logger.info(f"The nrun argument should be >= 3, setting it to 3.")
         nrun = 3
 
     # copy the list of samples so that they are not modified in place
@@ -318,18 +321,18 @@ def train_model(train_samples, train_phenotypes, outdir,
     nmark = X_train.shape[1]
 
     # generate multi-cell inputs
-    print 'Generating multi-cell inputs...'
+    logger.info("Generating multi-cell inputs...")
 
     if subset_selection == 'outlier':
         # here we assume that class 0 is always the control class
         x_ctrl_train = X_train[y_train == 0]
         to_keep = int(0.1 * (X_train.shape[0] / len(train_phenotypes)))
-        nsubset_ctrl = nsubset / np.sum(train_phenotypes == 0)
+        nsubset_ctrl = nsubset // np.sum(train_phenotypes == 0)
 
         # generate a fixed number of subsets per class
         nsubset_biased = [0]
         for pheno in range(1, len(np.unique(train_phenotypes))):
-            nsubset_biased.append(nsubset / np.sum(train_phenotypes == pheno))
+            nsubset_biased.append(nsubset // np.sum(train_phenotypes == pheno))
 
         X_tr, y_tr = generate_biased_subsets(X_train, train_phenotypes, id_train, x_ctrl_train,
                                              nsubset_ctrl, nsubset_biased, ncell, to_keep,
@@ -343,12 +346,12 @@ def train_model(train_samples, train_phenotypes, outdir,
 
         if (valid_samples is not None) or generate_valid_set:
             x_ctrl_valid = X_valid[y_valid == 0]
-            nsubset_ctrl = nsubset / np.sum(valid_phenotypes == 0)
+            nsubset_ctrl = nsubset // np.sum(valid_phenotypes == 0)
 
             # generate a fixed number of subsets per class
             nsubset_biased = [0]
             for pheno in range(1, len(np.unique(valid_phenotypes))):
-                nsubset_biased.append(nsubset / np.sum(valid_phenotypes == pheno))
+                nsubset_biased.append(nsubset // np.sum(valid_phenotypes == pheno))
 
             to_keep = int(0.1 * (X_valid.shape[0] / len(valid_phenotypes)))
             X_v, y_v = generate_biased_subsets(X_valid, valid_phenotypes, id_valid, x_ctrl_valid,
@@ -361,7 +364,7 @@ def train_model(train_samples, train_phenotypes, outdir,
             #X_v = np.load(os.path.join(outdir, 'X_v.npy'))
             #y_v = np.load(os.path.join(outdir, 'y_v.npy'))
         else:
-            cut = X_tr.shape[0] / 5
+            cut = X_tr.shape[0] // 5
             X_v = X_tr[:cut]
             y_v = y_tr[:cut]
             X_tr = X_tr[cut:]
@@ -378,17 +381,17 @@ def train_model(train_samples, train_phenotypes, outdir,
         else:
             nsubset_list = []
             for pheno in range(len(np.unique(train_phenotypes))):
-                nsubset_list.append(nsubset / np.sum(train_phenotypes == pheno))
+                nsubset_list.append(nsubset // np.sum(train_phenotypes == pheno))
             X_tr, y_tr = generate_subsets(X_train, train_phenotypes, id_train,
                                           nsubset_list, ncell, per_sample)
 
             if (valid_samples is not None) or generate_valid_set:
                 nsubset_list = []
                 for pheno in range(len(np.unique(valid_phenotypes))):
-                    nsubset_list.append(nsubset / np.sum(valid_phenotypes == pheno))
+                    nsubset_list.append(nsubset // np.sum(valid_phenotypes == pheno))
                 X_v, y_v = generate_subsets(X_valid, valid_phenotypes, id_valid,
                                             nsubset_list, ncell, per_sample)
-    print 'Done.'
+    logger.info("Done.")
 
     ## neural network configuration ##
     # batch size
@@ -415,7 +418,7 @@ def train_model(train_samples, train_phenotypes, outdir,
 
     for irun in range(nrun):
         if verbose:
-            print 'training network: %d' % (irun + 1)
+            logger.info(f"Training network: {irun + 1}")
         if learning_rate is None:
             lr = 10 ** np.random.uniform(-3, -2)
             config['learning_rate'].append(lr)
@@ -423,13 +426,13 @@ def train_model(train_samples, train_phenotypes, outdir,
         # choose number of filters for this run
         nfilter = np.random.choice(nfilter_choice)
         config['nfilter'].append(nfilter)
-        print 'Number of filters: %d' % nfilter
+        logger.info(f"Number of filters: {nfilter}")
 
         # choose number of cells pooled for this run
         mp = maxpool_percentages[irun % len(maxpool_percentages)]
         config['maxpool_percentage'].append(mp)
-        k = max(1, int(mp/100. * ncell))
-        print 'Cells pooled: %d' % k
+        k = max(1, int(mp / 100. * ncell))
+        logger.info(f"Cells pooled: {k}")
 
         # build the neural network
         model = build_model(ncell, nmark, nfilter,
@@ -458,14 +461,14 @@ def train_model(train_samples, train_phenotypes, outdir,
 
             if not regression:
                 valid_metric = model.evaluate(float32(X_v), int32(y_v))[-1]
-                print 'Best validation accuracy: %.2f' % valid_metric
+                logger.info(f"Best validation accuracy: {valid_metric:.2f}")
                 accuracies[irun] = valid_metric
 
             else:
                 train_metric = model.evaluate(float32(X_tr), float32(y_tr), batch_size=bs)
-                print 'Best train loss: %.2f' % train_metric
+                logger.info(f"Best train loss: {train_metric:.2f}")
                 valid_metric = model.evaluate(float32(X_v), float32(y_v), batch_size=bs)
-                print 'Best validation loss: %.2f' % valid_metric
+                logger.info(f"Best validation loss: {valid_metric:.2f}")
                 accuracies[irun] = - valid_metric
 
             # extract the network parameters
