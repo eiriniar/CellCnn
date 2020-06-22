@@ -1,4 +1,3 @@
-
 """ Copyright 2016-2017 ETH Zurich, Eirini Arvaniti and Manfred Claassen.
 
 This module contains functions for performing a CellCnn analysis.
@@ -19,21 +18,15 @@ from cellCnn.utils import cluster_profiles, keras_param_vector
 from cellCnn.utils import generate_subsets, generate_biased_subsets
 from cellCnn.utils import get_filters_classification, get_filters_regression
 from cellCnn.utils import mkdir_p
-from cellCnn.theano_utils import select_top, float32, int32
 
-from keras.layers import Input, Dense, Lambda, Activation, Dropout
-from keras.layers.convolutional import Convolution1D
-from keras.models import Model
-from keras.optimizers import Adam
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.utils.np_utils import to_categorical
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers, regularizers, optimizers, callbacks
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class CellCnn(object):
-
     """ Creates a CellCnn model.
 
     Args:
@@ -237,11 +230,10 @@ def train_model(train_samples, train_phenotypes, outdir,
                 valid_samples=None, valid_phenotypes=None, generate_valid_set=True,
                 scale=True, quant_normed=False, nrun=20, regression=False,
                 ncell=200, nsubset=1000, per_sample=False, subset_selection='random',
-                maxpool_percentages=[0.01, 1., 5., 20., 100.], nfilter_choice=range(3, 10),
+                maxpool_percentages=[0.01, 1., 5., 20., 100.], nfilter_choice=list(range(3, 10)),
                 learning_rate=None, coeff_l1=0, coeff_l2=1e-4, dropout='auto', dropout_p=.5,
                 max_epochs=20, patience=5,
                 dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
-
     """ Performs a CellCnn analysis """
     mkdir_p(outdir)
 
@@ -268,29 +260,26 @@ def train_model(train_samples, train_phenotypes, outdir,
 
     # merge all input samples (X_train, X_valid)
     # and generate an identifier for each of them (train_id, valid_id)
+    train_sample_ids = np.arange(len(train_phenotypes))
     if (valid_samples is None) and (not generate_valid_set):
-        sample_ids = range(len(train_phenotypes))
-        X_train, id_train = combine_samples(train_samples, sample_ids)
+
+        X_train, id_train = combine_samples(train_samples, train_sample_ids)
 
     elif (valid_samples is None) and generate_valid_set:
-        sample_ids = range(len(train_phenotypes))
-        X, sample_id = combine_samples(train_samples, sample_ids)
+        X, sample_id = combine_samples(train_samples, train_sample_ids)
         valid_phenotypes = train_phenotypes
 
         # split into train-validation partitions
         eval_folds = 5
-        #kf = StratifiedKFold(sample_id, eval_folds)
-        #train_indices, valid_indices = next(iter(kf))
         kf = StratifiedKFold(n_splits=eval_folds)
         train_indices, valid_indices = next(kf.split(X, sample_id))
         X_train, id_train = X[train_indices], sample_id[train_indices]
         X_valid, id_valid = X[valid_indices], sample_id[valid_indices]
 
     else:
-        sample_ids = range(len(train_phenotypes))
-        X_train, id_train = combine_samples(train_samples, sample_ids)
-        sample_ids = range(len(valid_phenotypes))
-        X_valid, id_valid = combine_samples(valid_samples, sample_ids)
+        X_train, id_train = combine_samples(train_samples, train_sample_ids)
+        valid_sample_ids = np.arange(len(valid_phenotypes))
+        X_valid, id_valid = combine_samples(valid_samples, valid_sample_ids)
 
     if quant_normed:
         z_scaler = StandardScaler(with_mean=True, with_std=False)
@@ -339,10 +328,10 @@ def train_model(train_samples, train_phenotypes, outdir,
                                              id_ctrl=np.where(train_phenotypes == 0)[0],
                                              id_biased=np.where(train_phenotypes != 0)[0])
         # save those because it takes long to generate
-        #np.save(os.path.join(outdir, 'X_tr.npy'), X_tr)
-        #np.save(os.path.join(outdir, 'y_tr.npy'), y_tr)
-        #X_tr = np.load(os.path.join(outdir, 'X_tr.npy'))
-        #y_tr = np.load(os.path.join(outdir, 'y_tr.npy'))
+        # np.save(os.path.join(outdir, 'X_tr.npy'), X_tr)
+        # np.save(os.path.join(outdir, 'y_tr.npy'), y_tr)
+        # X_tr = np.load(os.path.join(outdir, 'X_tr.npy'))
+        # y_tr = np.load(os.path.join(outdir, 'y_tr.npy'))
 
         if (valid_samples is not None) or generate_valid_set:
             x_ctrl_valid = X_valid[y_valid == 0]
@@ -359,10 +348,10 @@ def train_model(train_samples, train_phenotypes, outdir,
                                                id_ctrl=np.where(valid_phenotypes == 0)[0],
                                                id_biased=np.where(valid_phenotypes != 0)[0])
             # save those because it takes long to generate
-            #np.save(os.path.join(outdir, 'X_v.npy'), X_v)
-            #np.save(os.path.join(outdir, 'y_v.npy'), y_v)
-            #X_v = np.load(os.path.join(outdir, 'X_v.npy'))
-            #y_v = np.load(os.path.join(outdir, 'y_v.npy'))
+            # np.save(os.path.join(outdir, 'X_v.npy'), X_v)
+            # np.save(os.path.join(outdir, 'y_v.npy'), y_v)
+            # X_v = np.load(os.path.join(outdir, 'X_v.npy'))
+            # y_v = np.load(os.path.join(outdir, 'y_v.npy'))
         else:
             cut = X_tr.shape[0] // 5
             X_v = X_tr[:cut]
@@ -404,8 +393,8 @@ def train_model(train_samples, train_phenotypes, outdir,
 
     if not regression:
         n_classes = len(np.unique(train_phenotypes))
-        y_tr = to_categorical(y_tr, n_classes)
-        y_v = to_categorical(y_v, n_classes)
+        y_tr = keras.utils.to_categorical(y_tr, n_classes)
+        y_v = keras.utils.to_categorical(y_v, n_classes)
 
     # train some neural networks with different parameter configurations
     accuracies = np.zeros(nrun)
@@ -442,32 +431,32 @@ def train_model(train_samples, train_phenotypes, outdir,
         filepath = os.path.join(outdir, 'nnet_run_%d.hdf5' % irun)
         try:
             if not regression:
-                check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True,
-                                        mode='auto')
-                earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
-                model.fit(float32(X_tr), int32(y_tr),
-                          nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
-                          validation_data=(float32(X_v), int32(y_v)), verbose=verbose)
+                check = callbacks.ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True,
+                                                  mode='auto')
+                earlyStopping = callbacks.EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
+                model.fit(X_tr, y_tr,
+                          epochs=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
+                          validation_data=(X_v, y_v), verbose=verbose)
             else:
-                check = ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True,
-                                        mode='auto')
-                earlyStopping = EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
-                model.fit(float32(X_tr), float32(y_tr),
-                          nb_epoch=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
-                          validation_data=(float32(X_v), float32(y_v)), verbose=verbose)
+                check = callbacks.ModelCheckpoint(filepath, monitor='val_loss', save_best_only=True,
+                                                  mode='auto')
+                earlyStopping = callbacks.EarlyStopping(monitor='val_loss', patience=patience, mode='auto')
+                model.fit(X_tr, y_tr,
+                          epochs=max_epochs, batch_size=bs, callbacks=[check, earlyStopping],
+                          validation_data=(X_v, y_v), verbose=verbose)
 
             # load the model from the epoch with highest validation accuracy
             model.load_weights(filepath)
 
             if not regression:
-                valid_metric = model.evaluate(float32(X_v), int32(y_v))[-1]
+                valid_metric = model.evaluate(X_v, y_v)[-1]
                 logger.info(f"Best validation accuracy: {valid_metric:.2f}")
                 accuracies[irun] = valid_metric
 
             else:
-                train_metric = model.evaluate(float32(X_tr), float32(y_tr), batch_size=bs)
+                train_metric = model.evaluate(X_tr, y_tr, batch_size=bs)
                 logger.info(f"Best train loss: {train_metric:.2f}")
-                valid_metric = model.evaluate(float32(X_v), float32(y_v), batch_size=bs)
+                valid_metric = model.evaluate(X_v, y_v, batch_size=bs)
                 logger.info(f"Best validation loss: {valid_metric:.2f}")
                 accuracies[irun] = - valid_metric
 
@@ -501,7 +490,7 @@ def train_model(train_samples, train_phenotypes, outdir,
         'best_model_index': best_accuracy_idx,
         'config': config,
         'scaler': z_scaler,
-        'n_classes' : n_classes
+        'n_classes': n_classes
     }
 
     if (valid_samples is not None) and (w_cons is not None):
@@ -517,41 +506,50 @@ def train_model(train_samples, train_phenotypes, outdir,
             results['filter_diff'] = filter_diff
     return results
 
+
 def build_model(ncell, nmark, nfilter, coeff_l1, coeff_l2,
                 k, dropout, dropout_p, regression, n_classes, lr=0.01):
-
     """ Builds the neural network architecture """
 
     # the input layer
-    data_input = Input(shape=(ncell, nmark))
+    data_input = keras.Input(shape=(ncell, nmark))
 
     # the filters
-    conv = Convolution1D(nfilter, 1, activation='linear',
-                         W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
+    conv = layers.Conv1D(filters=nfilter,
+                         kernel_size=1,
+                         activation='relu',
+                         kernel_regularizer=regularizers.l1_l2(l1=coeff_l1, l2=coeff_l2),
                          name='conv1')(data_input)
-    conv = Activation('relu')(conv)
-    # the cell grouping part
-    pooled = Lambda(select_top, output_shape=(nfilter,), arguments={'k':k})(conv)
+
+    # the cell grouping part (top-k pooling)
+    pooled = layers.Lambda(pool_top_k, output_shape=(nfilter,), arguments={'k': k})(conv)
 
     # possibly add dropout
     if dropout or ((dropout == 'auto') and (nfilter > 5)):
-        pooled = Dropout(p=dropout_p)(pooled)
+        pooled = layers.Dropout(rate=dropout_p)(pooled)
 
     # network prediction output
     if not regression:
-        output = Dense(n_classes, activation='softmax',
-                       W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-                       name='output')(pooled)
+        output = layers.Dense(units=n_classes,
+                              activation='softmax',
+                              kernel_regularizer=regularizers.l1_l2(l1=coeff_l1, l2=coeff_l2),
+                              name='output')(pooled)
     else:
-        output = Dense(1, activation='linear', W_regularizer=l1l2(l1=coeff_l1, l2=coeff_l2),
-                       name='output')(pooled)
-    model = Model(input=data_input, output=output)
+        output = layers.Dense(units=1,
+                              activation='linear',
+                              kernel_regularizer=regularizers.l1_l2(l1=coeff_l1, l2=coeff_l2),
+                              name='output')(pooled)
+    model = keras.Model(inputs=data_input, outputs=output)
 
     if not regression:
-        model.compile(optimizer=Adam(lr=lr),
+        model.compile(optimizer=optimizers.Adam(learning_rate=lr),
                       loss='categorical_crossentropy',
                       metrics=['accuracy'])
     else:
-        model.compile(optimizer=Adam(lr=lr),
+        model.compile(optimizer=optimizers.Adam(learning_rate=lr),
                       loss='mean_squared_error')
     return model
+
+
+def pool_top_k(x, k):
+    return tf.reduce_mean(tf.sort(x, axis=1, direction='DESCENDING')[:, :k, :], axis=1)

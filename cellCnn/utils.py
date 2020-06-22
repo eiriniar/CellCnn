@@ -13,17 +13,11 @@ import copy
 from cellCnn.downsample import random_subsample, kmeans_subsample, outlier_subsample
 from cellCnn.downsample import weighted_subsample
 import sklearn.utils as sku
-from sklearn.metrics.pairwise import pairwise_kernels, pairwise_distances
+from sklearn.metrics.pairwise import pairwise_kernels
 from scipy.cluster.hierarchy import linkage
 from scipy.cluster.hierarchy import fcluster
 from scipy import stats
-from scipy.sparse import coo_matrix
 import flowio
-
-try:
-    import igraph
-except ImportError:
-    pass
 
 
 # extra arguments accepted for backwards-compatibility (with the fcm-0.9.1 package)
@@ -103,10 +97,6 @@ def ftrans(x, c):
     return np.arcsinh(1. / c * x)
 
 
-def rectify(X):
-    return np.max(np.hstack([X.reshape(-1, 1), np.zeros((X.shape[0], 1))]), axis=1)
-
-
 def relu(x):
     return x * (x > 0)
 
@@ -124,7 +114,7 @@ def keras_param_vector(params):
     b = params[1]
     W_out = params[2]
     # store the (convolutional weights + biases + output weights) per filter
-    W_tot = np.hstack([W, b.reshape(-1, 1), W_out])
+    W_tot = np.hstack([W.T, b.reshape(-1, 1), W_out])
     return W_tot
 
 
@@ -164,7 +154,7 @@ def cluster_profiles(param_dict, nmark, accuracies, accur_thres=.99,
         if val > 1:
             members = w_strong[clusters == key]
             cons.append(representative(members, stop=nmark + 1))
-    if cons != []:
+    if cons:
         cons_profile = np.vstack(cons)
     else:
         cons_profile = None
@@ -346,48 +336,3 @@ def get_selected_cells(filter_w, data, scaler=None, filter_response_thres=0,
     else:
         return (g > filter_response_thres).astype(int)
 
-
-def create_graph(x1, k, g1=None, add_filter_response=False):
-    # compute pairwise distances between all points
-    # optionally, add cell filter activity as an extra feature
-    if add_filter_response:
-        x1 = np.hstack([x1, g1.reshape(-1, 1)])
-
-    d = pairwise_distances(x1, metric='euclidean')
-    # create a k-NN graph
-    idx = np.argsort(d)[:, 1:k + 1]
-    d.sort()
-    d = d[:, 1:k + 1]
-
-    # create a weighted adjacency matrix from the distances (use gaussian kernel)
-    # code from https://github.com/mdeff/cnn_graph/blob/master/lib/graph.py
-    gauss_sigma = np.mean(d[:, -1]) ** 2
-    w = np.exp(- d ** 2 / gauss_sigma)
-
-    # weight matrix
-    M = x1.shape[0]
-    I = np.arange(0, M).repeat(k)
-    J = idx.reshape(M * k)
-    V = w.reshape(M * k)
-    W = coo_matrix((V, (I, J)), shape=(M, M))
-    W.setdiag(0)
-    adj = W.todense()
-
-    # now reweight graph edges according to cell filter response similarity
-    # def min_kernel(v):
-    #   xv, yv = np.meshgrid(v, v)
-    #   return np.minimum(xv, yv)
-    # activity_kernel = pairwise_kernels(g1.reshape(-1, 1), g1.reshape(-1, 1), metric="rbf")
-    # activity_kernel = min_kernel(g1)
-    # adj = np.multiply(activity_kernel, adj)
-
-    # create a graph from the adjacency matrix
-    # first add the adges (binary matrix)
-    G = igraph.Graph.Adjacency((adj > 0).tolist())
-    # specify that the graph is undirected
-    G.to_undirected()
-    # now add weights to the edges
-    G.es['weight'] = adj[adj.nonzero()]
-    # print a summary of the graph
-    igraph.summary(G)
-    return G

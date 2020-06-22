@@ -16,8 +16,11 @@ from cellCnn.utils import get_data, save_results, mkdir_p, get_selected_cells
 from cellCnn.plotting import plot_results, plot_filters, discriminative_filters
 from cellCnn.model import CellCnn
 
+logging.basicConfig(
+    format="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def main():
@@ -72,16 +75,16 @@ def main():
     # neural network specific
     parser.add_argument('--maxpool_percentages', nargs='+', type=float,
                         help='list of choices (percentage of multi-cell input) for top-k max pooling',
-                        default=[0.01, 1, 5, 20, 100])
+                        default=[0.01, 1, 5, 20])
     parser.add_argument('--nfilter_choice', nargs='+', type=int,
-                        help='list of choices for number of filters', default=range(3, 10))
+                        help='list of choices for number of filters', default=list(range(3, 10)))
     parser.add_argument('--learning_rate', type=float, default=0.005,
                         help='learning rate for the Adam optimization algorithm')
     parser.add_argument('--coeff_l1', type=float, default=0,
                         help='coefficient for L1 weight regularization')
     parser.add_argument('--coeff_l2', type=float, default=0.0001,
                         help='coefficient for L2 weight regularization')
-    parser.add_argument('--max_epochs', type=int, default=20,
+    parser.add_argument('--max_epochs', type=int, default=50,
                         help='maximum number of iterations through the data')
     parser.add_argument('--patience', type=int, default=5,
                         help='number of epochs before early stopping')
@@ -145,8 +148,8 @@ def main():
     train_phenotypes = [phenotypes[i] for i in train]
     valid_phenotypes = [phenotypes[i] for i in val]
 
-    logger.info(f"Samples used for model training: {[fcs_info[i] for i in train]}")
-    logger.info(f"Samples used for validation: {[fcs_info[i] for i in val]}")
+    logger.info(f"Samples used for model training: {[fcs_info[i][0] for i in train]}")
+    logger.info(f"Samples used for validation: {[fcs_info[i][0] for i in val]}")
 
     # always generate multi-cell inputs on a per-sample basis for regression
     if args.regression:
@@ -177,9 +180,9 @@ def main():
                   outdir=args.outdir)
         # save results for subsequent analysis
         results = model.results
-        pickle.dump(results, open(os.path.join(args.outdir, 'results.pkl'), 'w'))
+        pickle.dump(results, open(os.path.join(args.outdir, 'results.pkl'), 'wb'))
     else:
-        results = pickle.load(open(os.path.join(args.outdir, 'results.pkl'), 'r'))
+        results = pickle.load(open(os.path.join(args.outdir, 'results.pkl'), 'rb'))
 
     if args.export_csv:
         save_results(results, args.outdir, marker_names)

@@ -13,7 +13,6 @@ from sklearn.metrics.pairwise import pairwise_distances
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def random_subsample(X, target_nobs, replace=True):

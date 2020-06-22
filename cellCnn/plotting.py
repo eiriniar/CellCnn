@@ -7,11 +7,9 @@ This module contains functions for plotting the results of a CellCnn analysis.
 import os
 import sys
 import logging
-from collections import Counter
 import numpy as np
 import pandas as pd
 from scipy import stats
-from sklearn.cluster import DBSCAN
 from sklearn.manifold import TSNE
 from sklearn.neighbors import NearestNeighbors
 import matplotlib
@@ -25,13 +23,7 @@ import seaborn as sns
 from cellCnn.utils import mkdir_p
 import statsmodels.api as sm
 
-try:
-    from cellCnn.utils import create_graph
-except ImportError:
-    pass
-
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def plot_results(results, samples, phenotypes, labels, outdir,
@@ -249,7 +241,7 @@ def plot_results(results, samples, phenotypes, labels, outdir,
 
 def discriminative_filters(results, outdir, filter_diff_thres, show_filters=True):
     mkdir_p(outdir)
-    keep_idx = range(results['selected_filters'].shape[0])
+    keep_idx = np.arange(results['selected_filters'].shape[0])
 
     # select the discriminative filters based on the validation set
     if 'filter_diff' in results:
@@ -267,8 +259,8 @@ def discriminative_filters(results, outdir, filter_diff_thres, show_filters=True
         if show_filters:
             plt.figure()
             sns.set_style('whitegrid')
-            plt.plot(range(len(filter_diff)), filter_diff, '--')
-            plt.xticks(range(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
+            plt.plot(np.arange(len(filter_diff)), filter_diff, '--')
+            plt.xticks(np.arange(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
                        rotation='vertical')
             plt.ylabel('average cell filter response difference between classes')
             sns.despine()
@@ -291,8 +283,8 @@ def discriminative_filters(results, outdir, filter_diff_thres, show_filters=True
         if show_filters:
             plt.figure()
             sns.set_style('whitegrid')
-            plt.plot(range(len(filter_diff)), filter_diff, '--')
-            plt.xticks(range(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
+            plt.plot(np.arange(len(filter_diff)), filter_diff, '--')
+            plt.xticks(np.arange(len(filter_diff)), ['filter %d' % i for i in sorted_idx],
                        rotation='vertical')
             plt.ylabel('Kendalls tau')
             sns.despine()
@@ -422,13 +414,12 @@ def plot_selected_subset(xc, zc, x, labels, sample_sizes, phenotypes, outdir, su
             else:
                 group_names = [f"group {y_i + 1}" for y_i in range(n_pheno)]
         box_grade = []
-        for group_name, y_i in zip(group_names, range(n_pheno)):
-            box_grade += [group_name] * len(frequencies[y_i])
+        for y_i, group_name in enumerate(group_names):
+            box_grade.extend([group_name] * len(frequencies[y_i]))
         box_data = np.hstack([np.array(frequencies[y_i]) for y_i in range(n_pheno)])
-        box = pd.DataFrame(np.array(zip(box_grade, box_data)),
-                           columns=['group', 'selected population frequency (%)'])
-        box['selected population frequency (%)'] = \
-            box['selected population frequency (%)'].astype('float64')
+        box = pd.DataFrame(columns=['group', 'selected population frequency (%)'])
+        box['group'] = box_grade
+        box['selected population frequency (%)'] = box_data
 
         _fig, ax = plt.subplots(figsize=(2.5, 2.5))
         ax = sns.boxplot(x="group", y="selected population frequency (%)", data=box, width=.5,
