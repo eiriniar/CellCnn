@@ -18,8 +18,8 @@ PyYAML= "*"
 Keras= "*"
 statsmodels= "*"
 FlowIO= "*"
-tqdm = "*"
 tensorflow = "*"
+cellcnn = {editable = true,path = "."}
 
 [requires]
 python_version = "3.7"

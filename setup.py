@@ -7,15 +7,7 @@ setup(
     description="Convolutional neural network for analyzing single cell measurements",
     packages=find_packages(),
     install_requires=[
-        "numpy",
-        "pandas",
-        "sklearn",
-        "scipy",
-        "matplotlib",
-        "seaborn",
         "Keras>=2.3",
-        "statsmodels",
-        "FlowIO",
         "tensorflow>=2.2"
     ]
 )
