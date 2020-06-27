@@ -11,6 +11,7 @@ import pickle
 import logging
 import pandas as pd
 import numpy as np
+import tensorflow as tf
 from sklearn.model_selection import StratifiedKFold, KFold
 from cellCnn.utils import get_data, save_results, mkdir_p, get_selected_cells
 from cellCnn.plotting import plot_results, plot_filters, discriminative_filters
@@ -82,7 +83,7 @@ def main():
                         help='learning rate for the Adam optimization algorithm')
     parser.add_argument('--coeff_l1', type=float, default=0,
                         help='coefficient for L1 weight regularization')
-    parser.add_argument('--coeff_l2', type=float, default=0.0001,
+    parser.add_argument('--coeff_l2', type=float, default=0.01,
                         help='coefficient for L2 weight regularization')
     parser.add_argument('--max_epochs', type=int, default=50,
                         help='maximum number of iterations through the data')
@@ -90,7 +91,7 @@ def main():
                         help='number of epochs before early stopping')
 
     # analysis specific
-    parser.add_argument('--seed', type=int, default=1234,
+    parser.add_argument('--seed', type=int, default=12321,
                         help='random seed')
     parser.add_argument('--nrun', type=int, default=15,
                         help='number of neural network configurations to try (should be >= 3)')
@@ -132,8 +133,11 @@ def main():
     samples, phenotypes = get_data(args.indir, fcs_info, marker_names,
                                    args.arcsinh, args.cofactor)
 
-    # generate training/validation sets
+    # set random seeds
     np.random.seed(args.seed)
+    tf.random.set_seed(args.seed)
+
+    # generate training/validation sets
     val_perc = 1 - args.train_perc
     n_splits = int(1. / val_perc)
     # stratified CV for classification problems
@@ -143,6 +147,7 @@ def main():
     else:
         skf = KFold(n_splits=n_splits, shuffle=True)
     train, val = next(skf.split(np.zeros((len(phenotypes), 1)), phenotypes))
+
     train_samples = [samples[i] for i in train]
     valid_samples = [samples[i] for i in val]
     train_phenotypes = [phenotypes[i] for i in train]

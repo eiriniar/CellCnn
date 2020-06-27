@@ -10,7 +10,6 @@ from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.utils.extmath import row_norms
 from sklearn.utils import check_random_state
 from sklearn.metrics.pairwise import pairwise_distances
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +128,7 @@ def knn_dist_memory_optimized(test_data, train_data, s):
     test_kNN_dist = np.zeros(nobs_test)
 
     logger.info(f"Going up to: {nobs_test / bs + 1}")
-    for ii in tqdm(range(nobs_test / bs + 1)):
+    for ii in range(nobs_test / bs + 1):
         # is this a full batch or is it the last one?
         if (ii + 1) * bs < nobs_test:
             end = (ii + 1) * bs

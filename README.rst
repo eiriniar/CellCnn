@@ -6,37 +6,23 @@ CellCnn
 Installation
 ============
 
-CellCnn is written in Python2.7. There are several ways to run Python, but we recommend using a virtual environment.
-To set up a virtual environment, you can perform the following steps:
+This branch contains a Python 3.7 implementation of CellCnn. We recommend using it with
+`pipenv <https://pypi.org/project/pipenv/>`_, by following the steps below:
 
-1. Download the Python2.7 installation script corresponding to your operating system from https://conda.io/miniconda.html . For example, for Mac OS it should be called "Miniconda2-latest-MacOSX-x86_64.sh".
-
-2. Run the installation script (please use the script name corresponding to your operating system):
-    ``bash Miniconda2-latest-MacOSX-x86_64.sh``
-
-3. Open a new terminal and create a virtual environment for CellCnn, e.g. "cellcnn_env":
-    ``conda create --name cellcnn_env python=2.7``
-
-4. Activate the virtual environment:
-    ``source activate cellcnn_env``
-
-----
-
-After having Python2.7 running on your system, please do the following to install CellCnn:
-
-1. Clone the CellCnn repository:
+#. Clone the CellCnn repository:
     ``git clone https://github.com/eiriniar/CellCnn.git``
 
-2. Install the CellCnn dependencies:
-    ``pip install -r https://raw.githubusercontent.com/eiriniar/CellCnn/master/requirements.txt``
+#. Go to the CellCnn root directory:
+    ``cd CellCnn``
 
-3. To install CellCnn, run the following command after replacing ``path_to_CellCnn`` with the actual path in your system:
-    ``pip install -e path_to_CellCnn/CellCnn``
+#. Install CellCnn and its dependencies:
+    ``pipenv install '-e .'``
 
-----
+The above steps have to be performed only once.
+Then, each time you want to perform a CellCnn analysis, go to the CellCnn root directory and activate the pipenv virtual environment by running:
 
-Changed in **version v0.2**: we now use the lightweight ``flowIO`` package for reading mass/flow cytometry data.
-Thanks to the package author Scott White for pointing out this possibility! 
+#.   ``pipenv shell``
+
 
 Usage
 =====

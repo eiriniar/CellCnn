@@ -21,7 +21,7 @@ from cellCnn.utils import mkdir_p
 
 import tensorflow as tf
 from tensorflow import keras
-from tensorflow.keras import layers, regularizers, optimizers, callbacks
+from tensorflow.keras import layers, initializers, regularizers, optimizers, callbacks
 
 logger = logging.getLogger(__name__)
 
@@ -86,8 +86,8 @@ class CellCnn(object):
     """
 
     def __init__(self, ncell=200, nsubset=1000, per_sample=False, subset_selection='random',
-                 maxpool_percentages=[0.01, 1., 5., 20., 100.], scale=True, quant_normed=False,
-                 nfilter_choice=list(range(3, 10)), dropout='auto', dropout_p=.5,
+                 maxpool_percentages=None, scale=True, quant_normed=False,
+                 nfilter_choice=None, dropout='auto', dropout_p=.5,
                  coeff_l1=0, coeff_l2=0.0001, learning_rate=None,
                  regression=False, max_epochs=20, patience=5, nrun=15, dendrogram_cutoff=0.4,
                  accur_thres=.95, verbose=1):
@@ -230,11 +230,18 @@ def train_model(train_samples, train_phenotypes, outdir,
                 valid_samples=None, valid_phenotypes=None, generate_valid_set=True,
                 scale=True, quant_normed=False, nrun=20, regression=False,
                 ncell=200, nsubset=1000, per_sample=False, subset_selection='random',
-                maxpool_percentages=[0.01, 1., 5., 20., 100.], nfilter_choice=list(range(3, 10)),
+                maxpool_percentages=None, nfilter_choice=None,
                 learning_rate=None, coeff_l1=0, coeff_l2=1e-4, dropout='auto', dropout_p=.5,
                 max_epochs=20, patience=5,
                 dendrogram_cutoff=0.4, accur_thres=.95, verbose=1):
+
     """ Performs a CellCnn analysis """
+
+    if maxpool_percentages is None:
+        maxpool_percentages = [0.01, 1., 5., 20., 100.]
+    if nfilter_choice is None:
+        nfilter_choice = list(range(3, 10))
+
     mkdir_p(outdir)
 
     if nrun < 3:
@@ -382,7 +389,7 @@ def train_model(train_samples, train_phenotypes, outdir,
                                             nsubset_list, ncell, per_sample)
     logger.info("Done.")
 
-    ## neural network configuration ##
+    # neural network configuration
     # batch size
     bs = 200
 
@@ -518,6 +525,7 @@ def build_model(ncell, nmark, nfilter, coeff_l1, coeff_l2,
     conv = layers.Conv1D(filters=nfilter,
                          kernel_size=1,
                          activation='relu',
+                         kernel_initializer=initializers.RandomUniform(),
                          kernel_regularizer=regularizers.l1_l2(l1=coeff_l1, l2=coeff_l2),
                          name='conv1')(data_input)
 
@@ -532,11 +540,13 @@ def build_model(ncell, nmark, nfilter, coeff_l1, coeff_l2,
     if not regression:
         output = layers.Dense(units=n_classes,
                               activation='softmax',
+                              kernel_initializer=initializers.RandomUniform(),
                               kernel_regularizer=regularizers.l1_l2(l1=coeff_l1, l2=coeff_l2),
                               name='output')(pooled)
     else:
         output = layers.Dense(units=1,
                               activation='linear',
+                              kernel_initializer=initializers.RandomUniform(),
                               kernel_regularizer=regularizers.l1_l2(l1=coeff_l1, l2=coeff_l2),
                               name='output')(pooled)
     model = keras.Model(inputs=data_input, outputs=output)

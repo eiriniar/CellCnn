@@ -24,6 +24,7 @@ from cellCnn.utils import mkdir_p
 import statsmodels.api as sm
 
 logger = logging.getLogger(__name__)
+plt.rcParams["mpl_toolkits.legacy_colorbar"] = False
 
 
 def plot_results(results, samples, phenotypes, labels, outdir,
