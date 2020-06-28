@@ -9,14 +9,14 @@ Installation
 This branch contains a Python 3.7 implementation of CellCnn. We recommend using it with
 `pipenv <https://pypi.org/project/pipenv/>`_, by following the steps below:
 
-#. Clone the CellCnn repository:
-    ``git clone https://github.com/eiriniar/CellCnn.git``
+#. Clone the CellCnn repository and checkout the `python3` branch:
+    ``git clone -b python3 https://github.com/eiriniar/CellCnn.git``
 
 #. Go to the CellCnn root directory:
     ``cd CellCnn``
 
 #. Install CellCnn and its dependencies:
-    ``pipenv install '-e .'``
+    ``pipenv install``
 
 The above steps have to be performed only once.
 Then, each time you want to perform a CellCnn analysis, go to the CellCnn root directory and activate the pipenv virtual environment by running:
