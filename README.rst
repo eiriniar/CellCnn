@@ -6,7 +6,10 @@ CellCnn
 Installation
 ============
 
-CellCnn is written in Python2.7. There are several ways to run Python, but we recommend using a virtual environment.
+CellCnn was originally written in Python2.7. For a Python3 version, please check out this branch:
+ https://github.com/eiriniar/CellCnn/tree/python3
+
+There are several ways to run Python, but we recommend using a virtual environment.
 To set up a virtual environment, you can perform the following steps:
 
 1. Download the Python2.7 installation script corresponding to your operating system from https://conda.io/miniconda.html . For example, for Mac OS it should be called "Miniconda2-latest-MacOSX-x86_64.sh".
@@ -36,7 +39,7 @@ After having Python2.7 running on your system, please do the following to instal
 ----
 
 Changed in **version v0.2**: we now use the lightweight ``flowIO`` package for reading mass/flow cytometry data.
-Thanks to the package author Scott White for pointing out this possibility! 
+Thanks to the package author Scott White for pointing out this possibility!
 
 Usage
 =====
@@ -52,7 +55,7 @@ To get a list of command line options please run:
 
 For a CellCnn analysis with default settings only two arguments have to be provided:
 
-``python run_analysis.py -f fcs_samples_with_labels.csv -m markers.csv`` 
+``python run_analysis.py -f fcs_samples_with_labels.csv -m markers.csv``
 
 | The first input argument is a two-column CSV file, where the first column specifies input sample filenames and the second column the corresponding class labels. An example file is provided in ``CellCnn/cellCnn/examples/NK_fcs_samples_with_labels.csv``.
 | The second input argument is a CSV file containing the names of markers/channels that should be used for the analysis. An example file is provided in ``CellCnn/cellCnn/examples/NK_markers.csv``.
